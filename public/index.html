@@ -21,7 +21,6 @@
     .header-info h2 { font-size: 16px; color: #e9edef; }
     .header-info p { font-size: 12px; color: #8696a0; }
 
-    /* Modern Geometric Chat Wallpaper Pattern */
     #chat-box { 
       flex: 1; 
       overflow-y: auto; 
@@ -47,7 +46,6 @@
     .btn-icon { background: none; border: none; color: #8696a0; font-size: 22px; cursor: pointer; padding: 4px; }
     .btn-send { background-color: #00a884; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #111b21; font-size: 16px; flex-shrink: 0; }
 
-    /* Lightbox Modal */
     #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; padding: 10px; }
     #lightbox img { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 4px; }
     .lightbox-bar { position: absolute; top: 15px; left: 15px; display: flex; align-items: center; gap: 8px; z-index: 2001; }
@@ -105,13 +103,7 @@
     const FIXED_ROOM = "01112011";
 
     function toggleSecretInput(role) {
-      if (role === "admin") {
-        document.getElementById("secretKeyInput").style.display = "block";
-        document.getElementById("passkeyInput").style.display = "none";
-      } else {
-        document.getElementById("secretKeyInput").style.display = "none";
-        document.getElementById("passkeyInput").style.display = "block";
-      }
+      document.getElementById("secretKeyInput").style.display = role === "admin" ? "block" : "none";
     }
 
     async function deriveKey(secret) {
@@ -150,29 +142,23 @@
         );
         return new TextDecoder().decode(decrypted);
       } catch (e) {
-        return jsonStr;
+        return null;
       }
     }
 
-    async function joinRoom(autoData = null) {
-      const name = autoData ? autoData.name : document.getElementById("usernameInput").value.trim();
-      const role = autoData ? autoData.role : document.getElementById("roleSelect").value;
-      const pass = autoData ? autoData.pass : document.getElementById("passkeyInput").value.trim();
-      const secret = autoData ? autoData.secret : document.getElementById("secretKeyInput").value.trim();
+    async function joinRoom() {
+      const name = document.getElementById("usernameInput").value.trim();
+      const role = document.getElementById("roleSelect").value;
+      const pass = document.getElementById("passkeyInput").value.trim();
+      const secret = document.getElementById("secretKeyInput").value.trim();
 
-      if (!name) return alert("Please enter your name");
-      
-      if (role === "admin") {
-        if (secret !== "M4nil@l019") return alert("Invalid Admin Secret Key");
-      } else {
-        if (pass !== "9460") return alert("Invalid Member Passkey");
-      }
+      if (!name || !pass) return alert("Please fill in required fields");
+      if (pass !== "9460") return alert("Invalid Member Passkey");
+      if (role === "admin" && secret !== "M4nil@l019") return alert("Invalid Admin Secret Key");
 
       currentUser = name;
-      const effectiveSecret = role === "admin" ? secret : pass;
-      cryptoKey = await deriveKey(effectiveSecret + FIXED_ROOM);
-
-      localStorage.setItem("drexqe_session", JSON.stringify({ name, role, pass, secret }));
+      // Derived key always uses Member Passkey + Room ID so all users share the same key
+      cryptoKey = await deriveKey(pass + FIXED_ROOM);
 
       document.getElementById("auth-screen").style.display = "none";
       document.getElementById("app-screen").style.display = "flex";
@@ -181,25 +167,17 @@
       socket.emit("join-room", { room: FIXED_ROOM, user: name });
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      const saved = localStorage.getItem("drexqe_session");
-      if (saved) {
-        try {
-          const autoData = JSON.parse(saved);
-          joinRoom(autoData);
-        } catch(e) {}
-      }
-    });
-
     socket.on("load-history", async (history) => {
       const chatBox = document.getElementById("chat-box");
       chatBox.innerHTML = '<div class="system">End-to-end encrypted connection established.</div>';
       for (const payload of history) {
         const decryptedStr = await decryptData(payload);
-        try {
-          const parsed = JSON.parse(decryptedStr);
-          appendMessage(parsed, parsed.sender === currentUser);
-        } catch(e) {}
+        if (decryptedStr) {
+          try {
+            const parsed = JSON.parse(decryptedStr);
+            appendMessage(parsed, parsed.sender === currentUser);
+          } catch(e) {}
+        }
       }
     });
 
@@ -236,10 +214,12 @@
 
     socket.on("chat-message", async (data) => {
       const decryptedStr = await decryptData(data.payload);
-      try {
-        const parsed = JSON.parse(decryptedStr);
-        appendMessage(parsed, parsed.sender === currentUser);
-      } catch(e) {}
+      if (decryptedStr) {
+        try {
+          const parsed = JSON.parse(decryptedStr);
+          appendMessage(parsed, parsed.sender === currentUser);
+        } catch(e) {}
+      }
     });
 
     function openLightbox(src) {
