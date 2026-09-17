@@ -39,7 +39,7 @@
     .sent { background-color: #005c4b; align-self: flex-end; color: #e9edef; }
     .system { align-self: center; background-color: #182229; color: #8696a0; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
 
-    .media-thumb { width: 200px; height: 200px; object-fit: cover; border-radius: 8px; margin-top: 4px; cursor: pointer; display: block; }
+    .media-thumb { width: 200px; max-height: 250px; object-fit: cover; border-radius: 8px; margin-top: 4px; cursor: pointer; display: block; }
 
     .input-area { display: flex; align-items: center; padding: 8px 12px; background-color: #202c33; gap: 8px; flex-shrink: 0; }
     .input-area input[type="text"] { flex: 1; background-color: #2a3942; border: none; padding: 12px 16px; border-radius: 20px; color: #e9edef; font-size: 15px; outline: none; }
@@ -146,19 +146,20 @@
       }
     }
 
-    async function joinRoom() {
-      const name = document.getElementById("usernameInput").value.trim();
-      const role = document.getElementById("roleSelect").value;
-      const pass = document.getElementById("passkeyInput").value.trim();
-      const secret = document.getElementById("secretKeyInput").value.trim();
+    async function joinRoom(savedData = null) {
+      const name = savedData ? savedData.name : document.getElementById("usernameInput").value.trim();
+      const role = savedData ? savedData.role : document.getElementById("roleSelect").value;
+      const pass = savedData ? savedData.pass : document.getElementById("passkeyInput").value.trim();
+      const secret = savedData ? savedData.secret : document.getElementById("secretKeyInput").value.trim();
 
       if (!name || !pass) return alert("Please fill in required fields");
       if (pass !== "9460") return alert("Invalid Member Passkey");
       if (role === "admin" && secret !== "M4nil@l019") return alert("Invalid Admin Secret Key");
 
       currentUser = name;
-      // Derived key always uses Member Passkey + Room ID so all users share the same key
       cryptoKey = await deriveKey(pass + FIXED_ROOM);
+
+      localStorage.setItem("drexqe_session", JSON.stringify({ name, role, pass, secret }));
 
       document.getElementById("auth-screen").style.display = "none";
       document.getElementById("app-screen").style.display = "flex";
@@ -166,6 +167,23 @@
 
       socket.emit("join-room", { room: FIXED_ROOM, user: name });
     }
+
+    // Auto auto-login on page refresh
+    window.addEventListener("DOMContentLoaded", () => {
+      const saved = localStorage.getItem("drexqe_session");
+      if (saved) {
+        try {
+          joinRoom(JSON.parse(saved));
+        } catch(e) {}
+      }
+    });
+
+    // Re-join room if socket reconnects automatically
+    socket.on("connect", () => {
+      if (currentUser) {
+        socket.emit("join-room", { room: FIXED_ROOM, user: currentUser });
+      }
+    });
 
     socket.on("load-history", async (history) => {
       const chatBox = document.getElementById("chat-box");
@@ -195,7 +213,7 @@
       const file = input.files[0];
       if (!file) return;
 
-      if (file.size > 5 * 1024 * 1024) return alert("File too large! Max size 5MB.");
+      if (file.size > 10 * 1024 * 1024) return alert("File too large! Max size 10MB.");
 
       const reader = new FileReader();
       reader.onload = async (e) => {
