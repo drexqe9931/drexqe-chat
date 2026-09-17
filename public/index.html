@@ -21,13 +21,25 @@
     .header-info h2 { font-size: 16px; color: #e9edef; }
     .header-info p { font-size: 12px; color: #8696a0; }
 
-    #chat-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background-color: #0b141a; }
+    /* Modern Geometric Chat Wallpaper Pattern */
+    #chat-box { 
+      flex: 1; 
+      overflow-y: auto; 
+      padding: 15px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 10px; 
+      background-color: #0b141a; 
+      background-image: radial-gradient(#202c33 1.2px, transparent 1.2px), radial-gradient(#202c33 1.2px, #0b141a 1.2px);
+      background-size: 24px 24px;
+      background-position: 0 0, 12px 12px;
+    }
+
     .msg { max-width: 80%; padding: 8px 10px; border-radius: 12px; font-size: 15px; word-wrap: break-word; }
     .received { background-color: #202c33; align-self: flex-start; color: #e9edef; }
     .sent { background-color: #005c4b; align-self: flex-end; color: #e9edef; }
     .system { align-self: center; background-color: #182229; color: #8696a0; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
 
-    /* 1:1 Aspect Ratio Thumbnails */
     .media-thumb { width: 200px; height: 200px; object-fit: cover; border-radius: 8px; margin-top: 4px; cursor: pointer; display: block; }
 
     .input-area { display: flex; align-items: center; padding: 8px 12px; background-color: #202c33; gap: 8px; flex-shrink: 0; }
@@ -35,7 +47,7 @@
     .btn-icon { background: none; border: none; color: #8696a0; font-size: 22px; cursor: pointer; padding: 4px; }
     .btn-send { background-color: #00a884; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #111b21; font-size: 16px; flex-shrink: 0; }
 
-    /* Lightbox Modal with Mini Back Button */
+    /* Lightbox Modal */
     #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; padding: 10px; }
     #lightbox img { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 4px; }
     .lightbox-bar { position: absolute; top: 15px; left: 15px; display: flex; align-items: center; gap: 8px; z-index: 2001; }
@@ -47,7 +59,6 @@
   <div id="auth-screen">
     <div class="auth-card">
       <h2>Drexqe Secure</h2>
-      <input type="text" id="roomIdInput" placeholder="Room Identifier">
       <input type="text" id="usernameInput" placeholder="Your Name">
       <select id="roleSelect" onchange="toggleSecretInput(this.value)">
         <option value="member">Member</option>
@@ -80,7 +91,6 @@
     </div>
   </div>
 
-  <!-- Fullscreen Lightbox with Mini Back Button -->
   <div id="lightbox">
     <div class="lightbox-bar">
       <button class="lightbox-back-btn" onclick="closeLightbox()">← Back to Chat</button>
@@ -92,10 +102,16 @@
     const socket = io();
     let cryptoKey = null;
     let currentUser = "";
-    let currentRoom = "";
+    const FIXED_ROOM = "01112011";
 
     function toggleSecretInput(role) {
-      document.getElementById("secretKeyInput").style.display = role === "admin" ? "block" : "none";
+      if (role === "admin") {
+        document.getElementById("secretKeyInput").style.display = "block";
+        document.getElementById("passkeyInput").style.display = "none";
+      } else {
+        document.getElementById("secretKeyInput").style.display = "none";
+        document.getElementById("passkeyInput").style.display = "block";
+      }
     }
 
     async function deriveKey(secret) {
@@ -139,31 +155,32 @@
     }
 
     async function joinRoom(autoData = null) {
-      const room = autoData ? autoData.room : document.getElementById("roomIdInput").value.trim();
       const name = autoData ? autoData.name : document.getElementById("usernameInput").value.trim();
       const role = autoData ? autoData.role : document.getElementById("roleSelect").value;
       const pass = autoData ? autoData.pass : document.getElementById("passkeyInput").value.trim();
       const secret = autoData ? autoData.secret : document.getElementById("secretKeyInput").value.trim();
 
-      if (!room || !name || !pass) return alert("Fill in required fields");
-      if (role === "admin" && secret !== "M4nil@l019") return alert("Invalid Admin Secret Key");
-      if (pass !== "9460") return alert("Invalid Passkey");
+      if (!name) return alert("Please enter your name");
+      
+      if (role === "admin") {
+        if (secret !== "M4nil@l019") return alert("Invalid Admin Secret Key");
+      } else {
+        if (pass !== "9460") return alert("Invalid Member Passkey");
+      }
 
       currentUser = name;
-      currentRoom = room;
-      cryptoKey = await deriveKey(pass + room);
+      const effectiveSecret = role === "admin" ? secret : pass;
+      cryptoKey = await deriveKey(effectiveSecret + FIXED_ROOM);
 
-      // Save credentials locally so refreshing doesn't lose session
-      localStorage.setItem("drexqe_session", JSON.stringify({ room, name, role, pass, secret }));
+      localStorage.setItem("drexqe_session", JSON.stringify({ name, role, pass, secret }));
 
       document.getElementById("auth-screen").style.display = "none";
       document.getElementById("app-screen").style.display = "flex";
       document.getElementById("userRoleStatus").textContent = `${name} (${role}) • Online`;
 
-      socket.emit("join-room", { room, user: name });
+      socket.emit("join-room", { room: FIXED_ROOM, user: name });
     }
 
-    // Auto-restore session on page load if saved
     window.addEventListener("DOMContentLoaded", () => {
       const saved = localStorage.getItem("drexqe_session");
       if (saved) {
@@ -192,7 +209,7 @@
       if (!text) return;
 
       const payload = await encryptData(JSON.stringify({ type: 'text', sender: currentUser, body: text }));
-      socket.emit("chat-message", { room: currentRoom, payload });
+      socket.emit("chat-message", { room: FIXED_ROOM, payload });
       input.value = "";
     }
 
@@ -211,7 +228,7 @@
           body: base64Data
         };
         const payload = await encryptData(JSON.stringify(msgObj));
-        socket.emit("chat-message", { room: currentRoom, payload });
+        socket.emit("chat-message", { room: FIXED_ROOM, payload });
       };
       reader.readAsDataURL(file);
       input.value = "";
