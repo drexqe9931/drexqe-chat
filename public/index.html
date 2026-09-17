@@ -8,52 +8,47 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     html, body { height: 100%; height: 100dvh; overflow: hidden; background-color: #0b141a; color: #e9edef; }
-    
     #auth-screen { position: fixed; inset: 0; background: #0b141a; display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
     .auth-card { background: #111b21; padding: 24px; border-radius: 16px; border: 1px solid #222d34; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-    .auth-card h2 { color: #00a884; text-align: center; font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .auth-card h2 { color: #00a884; text-align: center; font-size: 20px; font-weight: 600; }
     .auth-card input, .auth-card select { width: 100%; padding: 12px 14px; background: #202c33; border: 1px solid #2a3942; border-radius: 10px; color: #fff; font-size: 14px; outline: none; }
     .auth-card button { padding: 12px; background: #00a884; border: none; border-radius: 10px; color: #111b21; font-weight: 600; cursor: pointer; font-size: 15px; }
-
     #app-screen { display: flex; flex-direction: column; height: 100%; height: 100dvh; }
-    header { background-color: #202c33; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #111b21; flex-shrink: 0; }
+    header { background-color: #202c33; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #111b21; flex-shrink: 0; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
     .avatar { width: 40px; height: 40px; border-radius: 50%; background: #00a884; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #111b21; }
     .header-info h2 { font-size: 16px; color: #e9edef; }
     .header-info p { font-size: 12px; color: #8696a0; }
-
-    #chat-box { 
-      flex: 1; 
-      overflow-y: auto; 
-      padding: 15px; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 10px; 
-      background-color: #0b141a; 
-      background-image: radial-gradient(#202c33 1.2px, transparent 1.2px), radial-gradient(#202c33 1.2px, #0b141a 1.2px);
-      background-size: 24px 24px;
-      background-position: 0 0, 12px 12px;
-    }
-
+    .header-actions { display: flex; gap: 10px; }
+    #call-banner { display: none; background: #00a884; color: #111b21; padding: 10px 16px; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px; }
+    #call-banner button { background: #111b21; color: #fff; border: none; padding: 6px 14px; border-radius: 20px; cursor: pointer; }
+    #chat-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background-color: #0b141a; background-image: radial-gradient(#202c33 1.2px, transparent 1.2px), radial-gradient(#202c33 1.2px, #0b141a 1.2px); background-size: 24px 24px; background-position: 0 0, 12px 12px; }
     .msg { max-width: 80%; padding: 8px 10px; border-radius: 12px; font-size: 15px; word-wrap: break-word; }
     .received { background-color: #202c33; align-self: flex-start; color: #e9edef; }
     .sent { background-color: #005c4b; align-self: flex-end; color: #e9edef; }
     .system { align-self: center; background-color: #182229; color: #8696a0; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
-
     .media-thumb { width: 200px; max-height: 250px; object-fit: cover; border-radius: 8px; margin-top: 4px; cursor: pointer; display: block; }
-
+    .file-card { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 8px; text-decoration: none; color: #00a884; font-weight: 500; font-size: 14px; }
     .input-area { display: flex; align-items: center; padding: 8px 12px; background-color: #202c33; gap: 8px; flex-shrink: 0; }
     .input-area input[type="text"] { flex: 1; background-color: #2a3942; border: none; padding: 12px 16px; border-radius: 20px; color: #e9edef; font-size: 15px; outline: none; }
     .btn-icon { background: none; border: none; color: #8696a0; font-size: 22px; cursor: pointer; padding: 4px; }
     .btn-send { background-color: #00a884; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #111b21; font-size: 16px; flex-shrink: 0; }
-
-    #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; padding: 10px; }
-    #lightbox img { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 4px; }
-    .lightbox-bar { position: absolute; top: 15px; left: 15px; display: flex; align-items: center; gap: 8px; z-index: 2001; }
-    .lightbox-back-btn { background: #202c33; border: 1px solid #2a3942; color: #e9edef; padding: 8px 14px; border-radius: 20px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .recording { color: #f15c6d !important; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .modal-content { background: #111b21; width: 100%; max-width: 400px; border-radius: 16px; padding: 20px; border: 1px solid #222d34; display: flex; flex-direction: column; gap: 12px; }
+    .user-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #222d34; font-size: 14px; }
+    .user-actions { display: flex; gap: 6px; }
+    .btn-danger { background: #ea0038; border: none; color: white; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .btn-warn { background: #e09100; border: none; color: white; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    #video-modal { position: fixed; inset: 0; background: #0b141a; display: none; flex-direction: column; z-index: 3000; }
+    #video-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 10px; }
+    video { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; background: #202c33; }
+    .video-controls { height: 70px; background: #111b21; display: flex; align-items: center; justify-content: center; gap: 20px; }
+    .btn-endcall { background: #ea0038; border: none; width: 50px; height: 50px; border-radius: 50%; color: white; font-size: 20px; cursor: pointer; }
   </style>
 </head>
 <body>
-
   <div id="auth-screen">
     <div class="auth-card">
       <h2>Drexqe Secure</h2>
@@ -70,37 +65,66 @@
 
   <div id="app-screen" style="display: none;">
     <header>
-      <div class="avatar">🔒</div>
-      <div class="header-info">
-        <h2>Drexqe E2EE</h2>
-        <p id="userRoleStatus">Encrypted Session Active</p>
+      <div class="header-left">
+        <div class="avatar">🔒</div>
+        <div class="header-info">
+          <h2>Drexqe Group</h2>
+          <p id="userRoleStatus">Encrypted Session Active</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" onclick="startCall()">📹</button>
+        <button class="btn-icon" onclick="openAdminModal()">👥</button>
       </div>
     </header>
+
+    <div id="call-banner">
+      <span id="call-host-text">Group Video Call Started</span>
+      <button onclick="joinCall()">Join Call</button>
+    </div>
 
     <div id="chat-box">
       <div class="system">End-to-end encrypted connection established.</div>
     </div>
 
     <div class="input-area">
-      <input type="file" id="mediaInput" accept="image/*,video/*" style="display: none;" onchange="handleMediaUpload(this)">
+      <input type="file" id="mediaInput" accept="*/*" style="display: none;" onchange="handleFileUpload(this)">
       <button class="btn-icon" type="button" onclick="document.getElementById('mediaInput').click()">📎</button>
+      <button class="btn-icon" id="micBtn" type="button" onclick="toggleVoiceRecord()">🎙️</button>
       <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendTextMessage()">
       <button class="btn-send" onclick="sendTextMessage()">➤</button>
     </div>
   </div>
 
-  <div id="lightbox">
-    <div class="lightbox-bar">
-      <button class="lightbox-back-btn" onclick="closeLightbox()">← Back to Chat</button>
+  <div class="modal" id="adminModal">
+    <div class="modal-content">
+      <h3>Group Controls</h3>
+      <div id="adminActions" style="display: none; border-bottom: 1px solid #222d34; padding-bottom: 10px;">
+        <button class="btn-danger" style="width: 100%; padding: 8px;" onclick="clearAllMessages()">Clear All Group Messages</button>
+      </div>
+      <h4 style="margin-top: 5px;">Active Members</h4>
+      <div id="userListContainer"></div>
+      <button onclick="closeAdminModal()" style="background: #202c33; border: none; color: #fff; padding: 8px; border-radius: 8px; margin-top: 10px;">Close</button>
     </div>
-    <img id="lightboxImg" src="" alt="Expanded View">
+  </div>
+
+  <div id="video-modal">
+    <div id="video-grid"></div>
+    <div class="video-controls">
+      <button class="btn-endcall" onclick="leaveCall()">📵</button>
+    </div>
   </div>
 
   <script>
     const socket = io();
     let cryptoKey = null;
     let currentUser = "";
+    let userRole = "member";
     const FIXED_ROOM = "01112011";
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let localStream = null;
 
     function toggleSecretInput(role) {
       document.getElementById("secretKeyInput").style.display = role === "admin" ? "block" : "none";
@@ -108,9 +132,7 @@
 
     async function deriveKey(secret) {
       const enc = new TextEncoder();
-      const keyMaterial = await window.crypto.subtle.importKey(
-        "raw", enc.encode(secret), { name: "PBKDF2" }, false, ["deriveKey"]
-      );
+      const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(secret), { name: "PBKDF2" }, false, ["deriveKey"]);
       return window.crypto.subtle.deriveKey(
         { name: "PBKDF2", salt: enc.encode("drexqe-salt"), iterations: 100000, hash: "SHA-256" },
         keyMaterial,
@@ -123,27 +145,16 @@
     async function encryptData(text) {
       const enc = new TextEncoder();
       const iv = window.crypto.getRandomValues(new Uint8Array(12));
-      const encrypted = await window.crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: iv }, cryptoKey, enc.encode(text)
-      );
-      return JSON.stringify({
-        iv: Array.from(iv),
-        ciphertext: Array.from(new Uint8Array(encrypted))
-      });
+      const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, cryptoKey, enc.encode(text));
+      return JSON.stringify({ iv: Array.from(iv), ciphertext: Array.from(new Uint8Array(encrypted)) });
     }
 
     async function decryptData(jsonStr) {
       try {
         const { iv, ciphertext } = JSON.parse(jsonStr);
-        const decrypted = await window.crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: new Uint8Array(iv) },
-          cryptoKey,
-          new Uint8Array(ciphertext)
-        );
+        const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(iv) }, cryptoKey, new Uint8Array(ciphertext));
         return new TextDecoder().decode(decrypted);
-      } catch (e) {
-        return null;
-      }
+      } catch (e) { return null; }
     }
 
     async function joinRoom(savedData = null) {
@@ -157,6 +168,7 @@
       if (role === "admin" && secret !== "M4nil@l019") return alert("Invalid Admin Secret Key");
 
       currentUser = name;
+      userRole = role;
       cryptoKey = await deriveKey(pass + FIXED_ROOM);
 
       localStorage.setItem("drexqe_session", JSON.stringify({ name, role, pass, secret }));
@@ -165,63 +177,75 @@
       document.getElementById("app-screen").style.display = "flex";
       document.getElementById("userRoleStatus").textContent = `${name} (${role}) • Online`;
 
-      socket.emit("join-room", { room: FIXED_ROOM, user: name });
+      if (role === 'admin') document.getElementById('adminActions').style.display = 'block';
+
+      socket.emit("join-room", { room: FIXED_ROOM, user: name, role: role });
     }
 
-    // Auto auto-login on page refresh
     window.addEventListener("DOMContentLoaded", () => {
       const saved = localStorage.getItem("drexqe_session");
-      if (saved) {
-        try {
-          joinRoom(JSON.parse(saved));
-        } catch(e) {}
-      }
+      if (saved) { try { joinRoom(JSON.parse(saved)); } catch(e) {} }
     });
 
-    // Re-join room if socket reconnects automatically
-    socket.on("connect", () => {
-      if (currentUser) {
-        socket.emit("join-room", { room: FIXED_ROOM, user: currentUser });
-      }
-    });
+    socket.on("banned-notice", (msg) => { alert(msg); localStorage.clear(); location.reload(); });
+    socket.on("kicked-notice", () => { alert("You have been kicked by the admin."); localStorage.clear(); location.reload(); });
 
     socket.on("load-history", async (history) => {
       const chatBox = document.getElementById("chat-box");
       chatBox.innerHTML = '<div class="system">End-to-end encrypted connection established.</div>';
       for (const payload of history) {
         const decryptedStr = await decryptData(payload);
-        if (decryptedStr) {
-          try {
-            const parsed = JSON.parse(decryptedStr);
-            appendMessage(parsed, parsed.sender === currentUser);
-          } catch(e) {}
-        }
+        if (decryptedStr) appendMessage(JSON.parse(decryptedStr), JSON.parse(decryptedStr).sender === currentUser);
       }
+    });
+
+    socket.on("history-cleared", () => {
+      document.getElementById("chat-box").innerHTML = '<div class="system">Chat history cleared by admin.</div>';
+    });
+
+    socket.on("update-user-list", (users) => {
+      const container = document.getElementById("userListContainer");
+      container.innerHTML = "";
+      users.forEach(u => {
+        const row = document.createElement("div");
+        row.className = "user-row";
+        let controls = "";
+        if (userRole === 'admin' && u.username !== currentUser) {
+          controls = `
+            <div class="user-actions">
+              <button class="btn-warn" onclick="kickUser('${u.id}')">Kick</button>
+              <button class="btn-danger" onclick="banUser('${u.username}', '${u.id}')">Ban</button>
+            </div>
+          `;
+        }
+        row.innerHTML = `<span>${u.username} (${u.role})</span>${controls}`;
+        container.appendChild(row);
+      });
     });
 
     async function sendTextMessage() {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
       if (!text) return;
-
       const payload = await encryptData(JSON.stringify({ type: 'text', sender: currentUser, body: text }));
       socket.emit("chat-message", { room: FIXED_ROOM, payload });
       input.value = "";
     }
 
-    async function handleMediaUpload(input) {
+    async function handleFileUpload(input) {
       const file = input.files[0];
       if (!file) return;
-
-      if (file.size > 10 * 1024 * 1024) return alert("File too large! Max size 10MB.");
+      if (file.size > 20 * 1024 * 1024) return alert("File size exceeds 20MB limit.");
 
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const base64Data = e.target.result;
+        const isImg = file.type.startsWith('image');
+        const isVid = file.type.startsWith('video');
         const msgObj = {
-          type: file.type.startsWith('video') ? 'video' : 'image',
+          type: isImg ? 'image' : isVid ? 'video' : 'file',
           sender: currentUser,
-          body: base64Data
+          fileName: file.name,
+          body: e.target.result
         };
         const payload = await encryptData(JSON.stringify(msgObj));
         socket.emit("chat-message", { room: FIXED_ROOM, payload });
@@ -230,24 +254,34 @@
       input.value = "";
     }
 
+    async function toggleVoiceRecord() {
+      const micBtn = document.getElementById("micBtn");
+      if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const payload = await encryptData(JSON.stringify({ type: 'audio', sender: currentUser, body: e.target.result }));
+            socket.emit("chat-message", { room: FIXED_ROOM, payload });
+          };
+          reader.readAsDataURL(blob);
+        };
+        mediaRecorder.start();
+        micBtn.classList.add("recording");
+      } else {
+        mediaRecorder.stop();
+        micBtn.classList.remove("recording");
+      }
+    }
+
     socket.on("chat-message", async (data) => {
       const decryptedStr = await decryptData(data.payload);
-      if (decryptedStr) {
-        try {
-          const parsed = JSON.parse(decryptedStr);
-          appendMessage(parsed, parsed.sender === currentUser);
-        } catch(e) {}
-      }
+      if (decryptedStr) appendMessage(JSON.parse(decryptedStr), JSON.parse(decryptedStr).sender === currentUser);
     });
-
-    function openLightbox(src) {
-      document.getElementById("lightboxImg").src = src;
-      document.getElementById("lightbox").style.display = "flex";
-    }
-
-    function closeLightbox() {
-      document.getElementById("lightbox").style.display = "none";
-    }
 
     function appendMessage(msgObj, isSent) {
       const chatBox = document.getElementById("chat-box");
@@ -257,35 +291,63 @@
       if (msgObj.type === 'text') {
         msgDiv.textContent = isSent ? msgObj.body : `${msgObj.sender}: ${msgObj.body}`;
       } else if (msgObj.type === 'image') {
-        if (!isSent) {
-          const senderLabel = document.createElement("div");
-          senderLabel.style.fontSize = "11px";
-          senderLabel.style.color = "#8696a0";
-          senderLabel.textContent = msgObj.sender;
-          msgDiv.appendChild(senderLabel);
-        }
-        const img = document.createElement("img");
-        img.src = msgObj.body;
-        img.className = "media-thumb";
-        img.onclick = () => openLightbox(msgObj.body);
-        msgDiv.appendChild(img);
+        msgDiv.innerHTML = `${!isSent ? `<div style="font-size:11px;color:#8696a0">${msgObj.sender}</div>` : ''}<img src="${msgObj.body}" class="media-thumb">`;
       } else if (msgObj.type === 'video') {
-        if (!isSent) {
-          const senderLabel = document.createElement("div");
-          senderLabel.style.fontSize = "11px";
-          senderLabel.style.color = "#8696a0";
-          senderLabel.textContent = msgObj.sender;
-          msgDiv.appendChild(senderLabel);
-        }
-        const video = document.createElement("video");
-        video.src = msgObj.body;
-        video.className = "media-thumb";
-        video.controls = true;
-        msgDiv.appendChild(video);
+        msgDiv.innerHTML = `${!isSent ? `<div style="font-size:11px;color:#8696a0">${msgObj.sender}</div>` : ''}<video src="${msgObj.body}" class="media-thumb" controls></video>`;
+      } else if (msgObj.type === 'audio') {
+        msgDiv.innerHTML = `${!isSent ? `<div style="font-size:11px;color:#8696a0">${msgObj.sender}</div>` : ''}<audio src="${msgObj.body}" controls style="width: 200px; height: 40px; margin-top: 4px;"></audio>`;
+      } else if (msgObj.type === 'file') {
+        msgDiv.innerHTML = `${!isSent ? `<div style="font-size:11px;color:#8696a0">${msgObj.sender}</div>` : ''}<a class="file-card" href="${msgObj.body}" download="${msgObj.fileName}">📄 ${msgObj.fileName}</a>`;
       }
 
       chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function openAdminModal() { document.getElementById("adminModal").style.display = "flex"; }
+    function closeAdminModal() { document.getElementById("adminModal").style.display = "none"; }
+    function clearAllMessages() { if (confirm("Clear all group messages?")) socket.emit("admin-clear-history", { room: FIXED_ROOM }); }
+    function kickUser(id) { socket.emit("admin-kick-user", { targetSocketId: id, room: FIXED_ROOM }); }
+    function banUser(user, id) { if (confirm(`Ban ${user} permanently?`)) socket.emit("admin-ban-user", { username: user, targetSocketId: id, room: FIXED_ROOM }); }
+
+    socket.on("call-started", ({ host }) => {
+      document.getElementById("call-host-text").textContent = `${host} started a video call`;
+      document.getElementById("call-banner").style.display = "flex";
+    });
+
+    socket.on("call-ended", () => {
+      document.getElementById("call-banner").style.display = "none";
+      leaveCall();
+    });
+
+    async function startCall() {
+      socket.emit("start-call", { room: FIXED_ROOM, host: currentUser });
+      joinCall();
+    }
+
+    async function joinCall() {
+      document.getElementById("video-modal").style.display = "flex";
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      addVideoTile("local", localStream, true);
+    }
+
+    function addVideoTile(id, stream, isMuted = false) {
+      let v = document.getElementById(`video-${id}`);
+      if (!v) {
+        v = document.createElement("video");
+        v.id = `video-${id}`;
+        v.autoplay = true;
+        v.playsInline = true;
+        if (isMuted) v.muted = true;
+        document.getElementById("video-grid").appendChild(v);
+      }
+      v.srcObject = stream;
+    }
+
+    function leaveCall() {
+      if (localStream) { localStream.getTracks().forEach(track => track.stop()); }
+      document.getElementById("video-grid").innerHTML = "";
+      document.getElementById("video-modal").style.display = "none";
     }
   </script>
 </body>

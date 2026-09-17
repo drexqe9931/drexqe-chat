@@ -5,39 +5,102 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  maxHttpBufferSize: 1e7 // 10MB payload limit for media
-});
+const io = new Server(server, { maxHttpBufferSize: 1e8 }); // 100MB limit
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Temporary server memory for room message history
 const roomHistory = {};
+const activeUsers = {}; // room -> array of { socketId, username, role }
+const bannedUsers = new Set();
+let activeCall = null; // Stores current active WebRTC call info
 
 io.on('connection', (socket) => {
-  socket.on('join-room', ({ room, user }) => {
-    socket.join(room);
-    if (!roomHistory[room]) {
-      roomHistory[room] = [];
+  let currentUser = null;
+  let currentRoom = null;
+
+  socket.on('join-room', ({ room, user, role }) => {
+    if (bannedUsers.has(user.toLowerCase())) {
+      socket.emit('banned-notice', 'You are permanently banned from this chat.');
+      return;
     }
-    // Send message history to the newly connected client
+
+    currentUser = user;
+    currentRoom = room;
+    socket.join(room);
+
+    if (!activeUsers[room]) activeUsers[room] = [];
+    activeUsers[room] = activeUsers[room].filter(u => u.username !== user);
+    activeUsers[room].push({ id: socket.id, username: user, role: role || 'member' });
+
+    if (!roomHistory[room]) roomHistory[room] = [];
     socket.emit('load-history', roomHistory[room]);
+
+    io.to(room).emit('update-user-list', activeUsers[room]);
+
+    if (activeCall && activeCall.room === room) {
+      socket.emit('call-started', { host: activeCall.host });
+    }
   });
 
-  socket.on('chat-message', ({ room, payload }) => {
-    if (!roomHistory[room]) {
-      roomHistory[room] = [];
+  socket.on('chat-message', (data) => {
+    if (bannedUsers.has(currentUser?.toLowerCase())) return;
+    if (!roomHistory[data.room]) roomHistory[data.room] = [];
+    roomHistory[data.room].push(data.payload);
+    if (roomHistory[data.room].length > 100) roomHistory[data.room].shift();
+    io.to(data.room).emit('chat-message', data);
+  });
+
+  // Admin Controls
+  socket.on('admin-clear-history', ({ room }) => {
+    roomHistory[room] = [];
+    io.to(room).emit('history-cleared');
+  });
+
+  socket.on('admin-kick-user', ({ targetSocketId, room }) => {
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (targetSocket) {
+      targetSocket.emit('kicked-notice');
+      targetSocket.leave(room);
+      targetSocket.disconnect(true);
     }
-    roomHistory[room].push(payload);
-    // Keep max 100 recent messages per room
-    if (roomHistory[room].length > 100) {
-      roomHistory[room].shift();
+  });
+
+  socket.on('admin-ban-user', ({ username, targetSocketId, room }) => {
+    bannedUsers.add(username.toLowerCase());
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (targetSocket) {
+      targetSocket.emit('banned-notice', 'You have been permanently banned.');
+      targetSocket.leave(room);
+      targetSocket.disconnect(true);
     }
-    io.to(room).emit('chat-message', { payload });
+  });
+
+  // Video Call Signaling (WebRTC)
+  socket.on('start-call', ({ room, host }) => {
+    activeCall = { room, host };
+    io.to(room).emit('call-started', { host });
+  });
+
+  socket.on('end-call', ({ room }) => {
+    activeCall = null;
+    io.to(room).emit('call-ended');
+  });
+
+  socket.on('signal', (data) => {
+    io.to(data.to).emit('signal', {
+      from: socket.id,
+      signal: data.signal,
+      senderName: currentUser
+    });
+  });
+
+  socket.on('disconnect', () => {
+    if (currentRoom && activeUsers[currentRoom]) {
+      activeUsers[currentRoom] = activeUsers[currentRoom].filter(u => u.id !== socket.id);
+      io.to(currentRoom).emit('update-user-list', activeUsers[currentRoom]);
+    }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
