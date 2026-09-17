@@ -2,281 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Drexqe — E2EE Chat</title>
-  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drexqe Chat</title>
+  <script src="/socket.io/socket.io.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Helvetica, sans-serif; }
-    html, body { height: 100%; width: 100%; background-color: #0b141a; color: #e9edef; overflow: hidden; }
-    
-    .app-container { width: 100%; height: 100dvh; display: flex; flex-direction: column; background-color: #0b141a; }
-
-    /* Header */
-    .header { background-color: #202c33; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222d34; flex-shrink: 0; }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    .avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #00a884; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 1.2rem; }
-    .header-info h3 { font-size: 1rem; color: #e9edef; font-weight: 600; }
-    .header-info p { font-size: 0.75rem; color: #8696a0; }
-
-    .admin-btn { background: #ef4444; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: none; }
-
-    /* Login Overlay */
-    .login-overlay { position: absolute; inset: 0; background: #0b141a; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; z-index: 100; }
-    .login-card { background: #111b21; border: 1px solid #222d34; padding: 24px; border-radius: 12px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
-    .login-card h2 { color: #00a884; font-size: 1.4rem; text-align: center; margin-bottom: 2px; }
-    .login-card p { color: #8696a0; font-size: 0.8rem; text-align: center; margin-bottom: 8px; }
-    .login-card input { background: #202c33; border: none; color: #e9edef; padding: 12px; border-radius: 8px; outline: none; font-size: 0.9rem; }
-    
-    .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-    .btn-member { background-color: #00a884; color: #111b21; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .btn-admin { background-color: #334155; color: #38bdf8; border: 1px solid #38bdf8; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .btn-back { background: transparent; color: #8696a0; border: none; font-size: 0.8rem; text-decoration: underline; cursor: pointer; margin-top: 4px; display: none; text-align: center; }
-
-    #admin-pass-field { display: none; }
-
-    /* Chat Area */
-    .chat-area { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-image: radial-gradient(#202c33 1px, transparent 0); background-size: 16px 16px; }
-
-    /* Message Bubbles */
-    .bubble { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; line-height: 1.3; word-wrap: break-word; }
-    .bubble.me { align-self: flex-end; background-color: #005c4b; color: #e9edef; border-top-right-radius: 0; }
-    .bubble.other { align-self: flex-start; background-color: #202c33; color: #e9edef; border-top-left-radius: 0; }
-    .bubble.system { align-self: center; background-color: #182229; color: #ffd279; font-size: 0.75rem; border-radius: 6px; padding: 4px 8px; text-align: center; }
-    .sender-name { font-size: 0.75rem; font-weight: 600; color: #25d366; margin-bottom: 3px; }
-    .time { font-size: 0.65rem; color: #8696a0; float: right; margin-top: 4px; margin-left: 8px; }
-
-    /* Input Bar */
-    .footer { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-top: 1px solid #222d34; }
-    .footer input { flex: 1; background-color: #2a3942; border: none; color: #e9edef; padding: 12px 16px; border-radius: 24px; outline: none; font-size: 0.95rem; }
-    .footer button { background-color: #00a884; border: none; width: 42px; height: 42px; border-radius: 50%; color: #111b21; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    body { font-family: sans-serif; background: #121212; color: white; display: flex; flex-direction: column; height: 100vh; margin: 0; }
+    #chat-box { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .input-area { display: flex; padding: 10px; background: #1f1f1f; gap: 5px; }
+    input[type="text"] { flex: 1; padding: 10px; border-radius: 5px; border: none; outline: none; }
+    button { padding: 10px 15px; border-radius: 5px; border: none; background: #6200ee; color: white; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <!-- Login Modal -->
-  <div class="login-overlay" id="login-modal">
-    <div class="login-card">
-      <h2>Drexqe</h2>
-      <p>End-to-End Encrypted Chat</p>
-      
-      <input type="text" id="username-input" placeholder="Your Display Name" />
-      <input type="password" id="passkey-input" placeholder="Secret Passkey" />
-      <input type="password" id="admin-pass-field" placeholder="Admin Key" />
+  <div id="chat-box"></div>
 
-      <div class="btn-group">
-        <button class="btn-member" id="member-join-btn" onclick="joinAsMember()">Join Group</button>
-        <button class="btn-admin" id="admin-toggle-btn" onclick="toggleAdminField()">Switch to Admin Login</button>
-        <button class="btn-back" id="back-btn" onclick="switchToMemberView()">← Back to Member Login</button>
-      </div>
-    </div>
+  <div class="input-area">
+    <input type="file" id="mediaInput" accept="image/*,video/*" style="display: none;" onchange="handleMediaUpload(this)">
+    <button type="button" onclick="document.getElementById('mediaInput').click()">📎</button>
+    <input type="text" id="msgInput" placeholder="Type an encrypted message...">
+    <button onclick="sendMessage()">Send</button>
   </div>
 
-  <div class="app-container">
-    <div class="header">
-      <div class="header-left">
-        <div class="avatar">🔒</div>
-        <div class="header-info">
-          <h3>Drexqe</h3>
-          <p id="sub-status">online • E2EE Encrypted</p>
-        </div>
-      </div>
-      <button class="admin-btn" id="admin-clear-btn" onclick="clearGroupChat()">Clear All Chat</button>
-    </div>
-
-    <div class="chat-area" id="chat-box"></div>
-
-    <div class="footer">
-      <input type="text" id="msg" placeholder="Type a message..." disabled onkeypress="if(event.key==='Enter') sendMessage()" />
-      <button id="send-btn" onclick="sendMessage()" disabled>➤</button>
-    </div>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const FIXED_ROOM = "01112011";
-    let cryptoKey = null;
-    let myUsername = "";
-    let myAdminPass = "";
-    let isAdminMode = false;
 
-    if (!sessionStorage.getItem('tabSessionId')) {
-      sessionStorage.setItem('tabSessionId', 'user-' + Math.random().toString(36).substr(2, 9));
-    }
-    const tabSessionId = sessionStorage.getItem('tabSessionId');
+    async function handleMediaUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
 
-    async function getKey(rawKey) {
-      const enc = new TextEncoder();
-      const keyData = enc.encode(rawKey.padEnd(32, '0').slice(0, 32));
-      return await window.crypto.subtle.importKey(
-        "raw", keyData, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]
-      );
-    }
-
-    function toggleAdminField() {
-      const passkeyField = document.getElementById('passkey-input');
-      const adminField = document.getElementById('admin-pass-field');
-      const toggleBtn = document.getElementById('admin-toggle-btn');
-      const memberBtn = document.getElementById('member-join-btn');
-      const backBtn = document.getElementById('back-btn');
-
-      if (!isAdminMode) {
-        passkeyField.style.display = 'none';
-        adminField.style.display = 'block';
-        memberBtn.style.display = 'none';
-        backBtn.style.display = 'block';
-        toggleBtn.textContent = 'Login as Admin';
-        toggleBtn.style.backgroundColor = '#00a884';
-        toggleBtn.style.color = '#111b21';
-        isAdminMode = true;
-      } else {
-        joinAsAdmin();
-      }
-    }
-
-    function switchToMemberView() {
-      const passkeyField = document.getElementById('passkey-input');
-      const adminField = document.getElementById('admin-pass-field');
-      const toggleBtn = document.getElementById('admin-toggle-btn');
-      const memberBtn = document.getElementById('member-join-btn');
-      const backBtn = document.getElementById('back-btn');
-
-      passkeyField.style.display = 'block';
-      adminField.style.display = 'none';
-      memberBtn.style.display = 'block';
-      backBtn.style.display = 'none';
-      
-      toggleBtn.textContent = 'Switch to Admin Login';
-      toggleBtn.style.backgroundColor = '#334155';
-      toggleBtn.style.color = '#38bdf8';
-      isAdminMode = false;
-    }
-
-    async function joinAsMember() {
-      const nameInput = document.getElementById('username-input').value.trim();
-      const passkeyInput = document.getElementById('passkey-input').value.trim();
-
-      if (!nameInput) return alert("Please enter your Display Name!");
-      if (!passkeyInput) return alert("Please enter the Secret Passkey!");
-
-      myUsername = nameInput;
-      myAdminPass = "";
-      
-      cryptoKey = await getKey(passkeyInput);
-      socket.emit('join-room', { passkey: passkeyInput, username: myUsername, adminPass: "" });
-    }
-
-    async function joinAsAdmin() {
-      const nameInput = document.getElementById('username-input').value.trim();
-      myAdminPass = document.getElementById('admin-pass-field').value.trim();
-      
-      if (!nameInput) return alert("Please enter your Name!");
-      if (!myAdminPass) return alert("Please enter the Admin Key!");
-
-      myUsername = nameInput;
-      cryptoKey = await getKey("9460"); 
-      socket.emit('join-room', { passkey: "9460", username: myUsername, adminPass: myAdminPass });
-    }
-
-    socket.on('join-error', (errMsg) => {
-      alert(errMsg);
-    });
-
-    socket.on('load-history', async ({ history, isAdmin }) => {
-      document.getElementById('login-modal').style.display = 'none';
-      document.getElementById('msg').disabled = false;
-      document.getElementById('send-btn').disabled = false;
-
-      if (isAdmin) {
-        document.getElementById('admin-clear-btn').style.display = 'block';
-        document.getElementById('sub-status').textContent = "👑 Admin • E2EE Active";
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File too large! Please choose a file under 5MB.");
+        return;
       }
 
-      const box = document.getElementById('chat-box');
-      box.innerHTML = '<div class="bubble system">Welcome to Drexqe E2EE Chat</div>';
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        const payload = JSON.stringify({
+          type: file.type.startsWith('video') ? 'video' : 'image',
+          data: base64Data
+        });
 
-      for (let item of history) {
-        await renderMessage(item);
-      }
-    });
-
-    async function sendMessage() {
-      const input = document.getElementById('msg');
-      const text = input.value.trim();
-      if (!cryptoKey || !text) return;
-
-      const enc = new TextEncoder();
-      const iv = window.crypto.getRandomValues(new Uint8Array(12));
-      const ciphertext = await window.crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: iv },
-        cryptoKey,
-        enc.encode(text)
-      );
-
-      socket.emit('send-message', {
-        roomId: FIXED_ROOM,
-        senderSessionId: tabSessionId,
-        senderName: myUsername,
-        ciphertext: Array.from(new Uint8Array(ciphertext)),
-        iv: Array.from(iv),
-        timestamp: Date.now()
-      });
-
-      input.value = '';
+        socket.emit("chat-message", { payload });
+      };
+      reader.readAsDataURL(file);
     }
 
-    function clearGroupChat() {
-      if (confirm("Are you sure you want to delete all messages for everyone?")) {
-        socket.emit('clear-chat', { adminPass: myAdminPass });
-      }
-    }
-
-    socket.on('receive-message', async (data) => {
-      await renderMessage(data);
-    });
-
-    socket.on('system-message', (text) => {
-      addBubble(text, 'system');
-    });
-
-    socket.on('chat-cleared', () => {
-      const box = document.getElementById('chat-box');
-      box.innerHTML = '<div class="bubble system">All chat history was cleared by Admin.</div>';
-    });
-
-    async function renderMessage(data) {
+    socket.on("chat-message", (data) => {
+      const chatBox = document.getElementById("chat-box");
       try {
-        const dec = new TextDecoder();
-        const decrypted = await window.crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: new Uint8Array(data.iv) },
-          cryptoKey,
-          new Uint8Array(data.ciphertext)
-        );
-        
-        const isMe = data.senderSessionId === tabSessionId;
-        addBubble(dec.decode(decrypted), isMe ? 'me' : 'other', data.timestamp, data.senderName);
-      } catch (err) {
-        addBubble("Could not decrypt message", 'system');
+        const parsed = JSON.parse(data.payload);
+        if (parsed.type === 'image') {
+          const img = document.createElement("img");
+          img.src = parsed.data;
+          img.style.maxWidth = "200px";
+          img.style.borderRadius = "8px";
+          chatBox.appendChild(img);
+        } else if (parsed.type === 'video') {
+          const video = document.createElement("video");
+          video.src = parsed.data;
+          video.controls = true;
+          video.style.maxWidth = "240px";
+          chatBox.appendChild(video);
+        }
+      } catch (e) {
+        const msgDiv = document.createElement("div");
+        msgDiv.textContent = data.payload;
+        chatBox.appendChild(msgDiv);
       }
-    }
+    });
 
-    function addBubble(text, type, timeMs, senderName) {
-      const box = document.getElementById('chat-box');
-      const div = document.createElement('div');
-      div.className = `bubble ${type}`;
-      
-      const now = timeMs ? new Date(timeMs) : new Date();
-      const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-
-      if (type === 'system') {
-        div.textContent = text;
-      } else {
-        const nameHeader = type === 'other' ? `<div class="sender-name">${senderName}</div>` : `<div class="sender-name">You (${senderName})</div>`;
-        div.innerHTML = `${nameHeader}${text} <span class="time">${timeStr}</span>`;
-      }
-
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
+    function sendMessage() {
+      const input = document.getElementById("msgInput");
+      if (!input.value.trim()) return;
+      socket.emit("chat-message", { payload: input.value });
+      input.value = "";
     }
   </script>
 </body>
