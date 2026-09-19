@@ -2,14 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Drexqe Chat</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background: #111b21; color: #e9edef; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-    header { background: #202c33; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222d34; }
-    #chatBox { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-    .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; }
+    html, body { width: 100%; height: 100%; background: #111b21; color: #e9edef; overflow: hidden; }
+    body { display: flex; flex-direction: column; height: 100dvh; }
+    
+    header { background: #202c33; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222d34; flex-shrink: 0; z-index: 10; }
+    
+    #chatBox { flex: 1 1 auto; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #0b141a; min-height: 0; }
+    
+    .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; }
     .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
     .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
     .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; }
@@ -18,14 +22,14 @@
     .delete-btn { background: transparent; border: none; color: #8696a0; font-size: 12px; cursor: pointer; padding: 0 4px; }
     .delete-btn:hover { color: #ea0038; }
 
-    footer { background: #202c33; padding: 10px; display: flex; gap: 10px; align-items: center; }
-    input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; }
-    button { background: #00a884; border: none; padding: 10px 15px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; }
+    footer { background: #202c33; padding: 10px; display: flex; gap: 10px; align-items: center; flex-shrink: 0; z-index: 10; }
+    input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; font-size: 14px; }
+    button { background: #00a884; border: none; padding: 10px 15px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; font-size: 14px; }
     
-    .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999; }
+    .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 9999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
     
-    #callScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; z-index: 1000; flex-direction: column; justify-content: space-between; padding: 20px; }
+    #callScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; z-index: 10000; flex-direction: column; justify-content: space-between; padding: 20px; }
     .call-header { text-align: center; padding-top: 20px; }
     .call-header h4 { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
     .call-header h2 { font-size: 22px; margin-top: 5px; }
@@ -109,7 +113,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    const socket = typeof io !== 'undefined' ? io() : null;
     const FIXED_ROOM = "01112011";
     
     let localStream = null;
@@ -120,7 +124,25 @@
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
       ]
     };
 
@@ -134,16 +156,24 @@
     let userRole = "member";
     let activeCallUsersList = [];
 
-    window.addEventListener("load", () => {
-      document.getElementById("loginModal").style.display = "flex";
+    function initUI() {
+      const modal = document.getElementById("loginModal");
+      if (modal) modal.style.display = "flex";
+
       const savedUser = localStorage.getItem("drexqe_user");
       const savedRole = localStorage.getItem("drexqe_role");
       const savedPasskey = localStorage.getItem("drexqe_passkey");
 
-      if (savedUser) document.getElementById("usernameInput").value = savedUser;
-      if (savedRole) document.getElementById("roleSelect").value = savedRole;
-      if (savedPasskey) document.getElementById("passkeyInput").value = savedPasskey;
-    });
+      if (savedUser && document.getElementById("usernameInput")) document.getElementById("usernameInput").value = savedUser;
+      if (savedRole && document.getElementById("roleSelect")) document.getElementById("roleSelect").value = savedRole;
+      if (savedPasskey && document.getElementById("passkeyInput")) document.getElementById("passkeyInput").value = savedPasskey;
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initUI);
+    } else {
+      initUI();
+    }
 
     function joinChat() {
       const name = document.getElementById("usernameInput").value.trim();
@@ -159,33 +189,37 @@
       localStorage.setItem("drexqe_role", role);
       localStorage.setItem("drexqe_passkey", passkey);
 
-      socket.emit("join-room", { 
-        room: FIXED_ROOM, 
-        user: currentUser, 
-        role: userRole, 
-        passkey: passkey, 
-        deviceId: deviceId
-      });
+      if (socket) {
+        socket.emit("join-room", { 
+          room: FIXED_ROOM, 
+          user: currentUser, 
+          role: userRole, 
+          passkey: passkey, 
+          deviceId: deviceId
+        });
+      }
     }
 
-    socket.on("auth-success", () => {
-      document.getElementById("loginModal").style.display = "none";
-      if (userRole === "admin") document.getElementById("adminBtn").style.display = "inline-block";
-    });
+    if (socket) {
+      socket.on("auth-success", () => {
+        document.getElementById("loginModal").style.display = "none";
+        if (userRole === "admin") document.getElementById("adminBtn").style.display = "inline-block";
+      });
 
-    socket.on("auth-error", (msg) => alert(msg));
-    socket.on("pending-approval-notice", (msg) => alert(msg));
-    socket.on("approval-granted", () => {
-      alert("✅ Request approved by Admin!");
-      document.getElementById("loginModal").style.display = "none";
-    });
+      socket.on("auth-error", (msg) => alert(msg));
+      socket.on("pending-approval-notice", (msg) => alert(msg));
+      socket.on("approval-granted", () => {
+        alert("✅ Request approved by Admin!");
+        document.getElementById("loginModal").style.display = "none";
+      });
+    }
 
     function sendMessage() {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
       if (!text) return;
 
-      socket.emit("chat-message", { room: FIXED_ROOM, payload: { sender: currentUser, text: text } });
+      if (socket) socket.emit("chat-message", { room: FIXED_ROOM, payload: { sender: currentUser, text: text } });
       input.value = "";
     }
 
@@ -204,17 +238,19 @@
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = () => {
-              socket.emit("chat-message", { 
-                room: FIXED_ROOM, 
-                type: "voice",
-                payload: { sender: currentUser, audio: reader.result } 
-              });
+              if (socket) {
+                socket.emit("chat-message", { 
+                  room: FIXED_ROOM, 
+                  type: "voice",
+                  payload: { sender: currentUser, audio: reader.result } 
+                });
+              }
             };
           };
           mediaRecorder.start();
           isRecording = true;
           btn.style.background = "#ea0038";
-        });
+        }).catch(err => alert("Microphone access denied: " + err.message));
       } else {
         mediaRecorder.stop();
         isRecording = false;
@@ -222,77 +258,85 @@
       }
     }
 
-    socket.on("chat-message", (data) => {
-      const box = document.getElementById("chatBox");
-      const div = document.createElement("div");
-      div.id = data.id;
+    if (socket) {
+      socket.on("chat-message", (data) => {
+        const box = document.getElementById("chatBox");
+        const div = document.createElement("div");
+        div.id = data.id;
 
-      if (data.type === "system") {
-        div.className = "msg system";
-        div.textContent = data.payload.text;
-      } else {
-        const isMe = data.payload.sender === currentUser;
-        div.className = "msg " + (isMe ? "me" : "other");
-
-        const canDelete = isMe || userRole === "admin";
-        const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${data.id}', '${data.payload.sender}')">🗑️</button>` : '';
-
-        const headerHtml = `
-          <div class="msg-header">
-            <strong>${data.payload.sender}</strong>
-            ${deleteMarkup}
-          </div>
-        `;
-
-        if (data.type === "voice") {
-          div.innerHTML = `${headerHtml}<audio controls src="${data.payload.audio}"></audio>`;
+        if (data.type === "system") {
+          div.className = "msg system";
+          div.textContent = data.payload.text;
         } else {
-          div.innerHTML = `${headerHtml}<span>${data.payload.text}</span>`;
-        }
-      }
+          const isMe = data.payload.sender === currentUser;
+          div.className = "msg " + (isMe ? "me" : "other");
 
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    });
+          const canDelete = isMe || userRole === "admin";
+          const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${data.id}', '${data.payload.sender}')">🗑️</button>` : '';
+
+          const headerHtml = `
+            <div class="msg-header">
+              <strong>${data.payload.sender}</strong>
+              ${deleteMarkup}
+            </div>
+          `;
+
+          if (data.type === "voice") {
+            div.innerHTML = `${headerHtml}<audio controls src="${data.payload.audio}"></audio>`;
+          } else {
+            div.innerHTML = `${headerHtml}<span>${data.payload.text}</span>`;
+          }
+        }
+
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+      });
+    }
 
     function deleteMessage(msgId, sender) {
       if (confirm("Delete this message for everyone?")) {
-        socket.emit("delete-message", { msgId, sender });
+        if (socket) socket.emit("delete-message", { msgId, sender });
       }
     }
 
-    socket.on("message-deleted", ({ msgId }) => {
-      const msgElem = document.getElementById(msgId);
-      if (msgElem) msgElem.remove();
-    });
+    if (socket) {
+      socket.on("message-deleted", ({ msgId }) => {
+        const msgElem = document.getElementById(msgId);
+        if (msgElem) msgElem.remove();
+      });
+    }
 
     function clearAllMessages() {
       if (confirm("Clear all messages for everyone in the chat?")) {
-        socket.emit("admin-clear-all-messages");
+        if (socket) socket.emit("admin-clear-all-messages");
       }
     }
 
-    socket.on("all-messages-cleared", () => {
-      document.getElementById("chatBox").innerHTML = "";
-    });
+    if (socket) {
+      socket.on("all-messages-cleared", () => {
+        document.getElementById("chatBox").innerHTML = "";
+      });
+    }
 
     async function joinVoiceCall() {
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         document.getElementById("callScreen").style.display = "flex";
-        socket.emit("voice-join");
+        if (socket) socket.emit("voice-join");
       } catch (err) {
-        alert("Microphone permission required to join call.");
+        alert("Microphone permission check failed: " + err.message);
       }
     }
 
-    socket.on("call-peers-list", (peers) => {
-      peers.forEach(peerId => createPeerConnection(peerId, true));
-    });
+    if (socket) {
+      socket.on("call-peers-list", (peers) => {
+        peers.forEach(peerId => createPeerConnection(peerId, true));
+      });
 
-    socket.on("user-joined-call", ({ socketId }) => {
-      createPeerConnection(socketId, false);
-    });
+      socket.on("user-joined-call", ({ socketId }) => {
+        createPeerConnection(socketId, false);
+      });
+    }
 
     function createPeerConnection(targetSocketId, isInitiator) {
       if (peerConnections[targetSocketId]) return;
@@ -310,52 +354,63 @@
           audio = document.createElement("audio");
           audio.id = "audio_" + targetSocketId;
           audio.autoplay = true;
+          audio.playsInline = true;
           document.getElementById("audioContainer").appendChild(audio);
         }
         audio.srcObject = event.streams[0];
         audio.muted = isSpeakerOff;
+        audio.play().catch(e => console.log("Autoplay unblock required:", e));
       };
 
       pc.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && socket) {
           socket.emit("voice-signal", { target: targetSocketId, signal: { candidate: event.candidate } });
         }
       };
 
       if (isInitiator) {
-        pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
-          socket.emit("voice-signal", { target: targetSocketId, signal: { sdp: pc.localDescription } });
-        });
+        pc.createOffer({ offerToReceiveAudio: true })
+          .then(offer => pc.setLocalDescription(offer))
+          .then(() => {
+            if (socket) socket.emit("voice-signal", { target: targetSocketId, signal: { sdp: pc.localDescription } });
+          })
+          .catch(err => console.error("Offer Creation Error:", err));
       }
     }
 
-    socket.on("voice-signal", async ({ sender, signal }) => {
-      let pc = peerConnections[sender];
-      if (!pc) {
-        createPeerConnection(sender, false);
-        pc = peerConnections[sender];
-      }
-
-      if (signal.sdp) {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-        if (signal.sdp.type === 'offer') {
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          socket.emit("voice-signal", { target: sender, signal: { sdp: pc.localDescription } });
+    if (socket) {
+      socket.on("voice-signal", async ({ sender, signal }) => {
+        let pc = peerConnections[sender];
+        if (!pc) {
+          createPeerConnection(sender, false);
+          pc = peerConnections[sender];
         }
-      } else if (signal.candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-      }
-    });
 
-    socket.on("user-left-call", ({ socketId }) => {
-      if (peerConnections[socketId]) {
-        peerConnections[socketId].close();
-        delete peerConnections[socketId];
-      }
-      const audio = document.getElementById("audio_" + socketId);
-      if (audio) audio.remove();
-    });
+        try {
+          if (signal.sdp) {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            if (signal.sdp.type === 'offer') {
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              socket.emit("voice-signal", { target: sender, signal: { sdp: pc.localDescription } });
+            }
+          } else if (signal.candidate) {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          }
+        } catch (err) {
+          console.error("Signaling Process Failure:", err);
+        }
+      });
+
+      socket.on("user-left-call", ({ socketId }) => {
+        if (peerConnections[socketId]) {
+          peerConnections[socketId].close();
+          delete peerConnections[socketId];
+        }
+        const audio = document.getElementById("audio_" + socketId);
+        if (audio) audio.remove();
+      });
+    }
 
     function toggleMute() {
       if (localStream) {
@@ -398,16 +453,19 @@
       });
       document.getElementById("audioContainer").innerHTML = "";
       document.getElementById("callScreen").style.display = "none";
-      socket.emit("voice-leave");
+      if (socket) socket.emit("voice-leave");
     }
 
-    socket.on("update-call-users", (callUsers) => {
-      activeCallUsersList = callUsers;
-      renderCallGrid();
-    });
+    if (socket) {
+      socket.on("update-call-users", (callUsers) => {
+        activeCallUsersList = callUsers;
+        renderCallGrid();
+      });
+    }
 
     function renderCallGrid() {
       const grid = document.getElementById("callUsersGrid");
+      if (!grid) return;
       grid.innerHTML = "";
 
       activeCallUsersList.forEach(user => {
@@ -428,87 +486,88 @@
       });
     }
 
-    socket.on("warning-notice", (msg) => alert(msg));
-    socket.on("banned-notice", (msg) => { alert(msg); window.location.reload(); });
-    socket.on("kicked-notice", () => { alert("You were kicked!"); window.location.reload(); });
+    if (socket) {
+      socket.on("warning-notice", (msg) => alert(msg));
+      socket.on("banned-notice", (msg) => { alert(msg); window.location.reload(); });
+      socket.on("kicked-notice", () => { alert("You were kicked!"); window.location.reload(); });
 
-    socket.on("admin-join-request", ({ username }) => {
-      if (userRole === "admin") {
-        alert(`🔒 Banned user "${username}" is attempting to join. Open Admin Panel to approve.`);
-      }
-    });
-
-    let activeUsers = [];
-    socket.on("update-user-list", ({ users, banned, requests }) => {
-      activeUsers = users;
-      const container = document.getElementById("userListContainer");
-      container.innerHTML = "";
-
-      const uTitle = document.createElement("h4");
-      uTitle.textContent = "Online Users";
-      container.appendChild(uTitle);
-
-      users.forEach(u => {
-        const row = document.createElement("div");
-        row.className = "user-row";
-        let controls = "";
-        if (userRole === 'admin' && u.username !== currentUser) {
-          controls = `
-            <div>
-              <button class="btn-warn" onclick="kickUser('${u.id}')">Kick</button>
-              <button class="btn-danger" onclick="banUser('${u.username}', '${u.id}')">Ban</button>
-            </div>
-          `;
+      socket.on("admin-join-request", ({ username }) => {
+        if (userRole === "admin") {
+          alert(`🔒 Banned user "${username}" is attempting to join. Open Admin Panel to approve.`);
         }
-        row.innerHTML = `<span>${u.username} (${u.role})</span>${controls}`;
-        container.appendChild(row);
       });
 
-      if (userRole === 'admin' && requests && requests.length > 0) {
-        const rTitle = document.createElement("h4");
-        rTitle.style.color = "#f39c12";
-        rTitle.style.marginTop = "10px";
-        rTitle.textContent = "Unban Requests";
-        container.appendChild(rTitle);
+      socket.on("update-user-list", ({ users, banned, requests }) => {
+        const container = document.getElementById("userListContainer");
+        if (!container) return;
+        container.innerHTML = "";
 
-        requests.forEach(r => {
-          const rRow = document.createElement("div");
-          rRow.className = "user-row";
-          rRow.innerHTML = `
-            <span>${r.username}</span>
-            <div>
-              <button class="btn-warn" style="background:#00a884; color:#111b21;" onclick="approveJoin('${r.socketId}')">Approve</button>
-              <button class="btn-danger" onclick="denyJoin('${r.socketId}')">Deny</button>
-            </div>
-          `;
-          container.appendChild(rRow);
+        const uTitle = document.createElement("h4");
+        uTitle.textContent = "Online Users";
+        container.appendChild(uTitle);
+
+        users.forEach(u => {
+          const row = document.createElement("div");
+          row.className = "user-row";
+          let controls = "";
+          if (userRole === 'admin' && u.username !== currentUser) {
+            controls = `
+              <div>
+                <button class="btn-warn" onclick="kickUser('${u.id}')">Kick</button>
+                <button class="btn-danger" onclick="banUser('${u.username}', '${u.id}')">Ban</button>
+              </div>
+            `;
+          }
+          row.innerHTML = `<span>${u.username} (${u.role})</span>${controls}`;
+          container.appendChild(row);
         });
-      }
 
-      if (userRole === 'admin' && banned && banned.length > 0) {
-        const bTitle = document.createElement("h4");
-        bTitle.style.color = "#ea0038";
-        bTitle.style.marginTop = "10px";
-        bTitle.textContent = "Banned Users";
-        container.appendChild(bTitle);
+        if (userRole === 'admin' && requests && requests.length > 0) {
+          const rTitle = document.createElement("h4");
+          rTitle.style.color = "#f39c12";
+          rTitle.style.marginTop = "10px";
+          rTitle.textContent = "Unban Requests";
+          container.appendChild(rTitle);
 
-        banned.forEach(bUser => {
-          const bRow = document.createElement("div");
-          bRow.className = "user-row";
-          bRow.innerHTML = `
-            <span>${bUser}</span>
-            <button class="btn-warn" style="background:#00a884; color:#111b21;" onclick="unbanUser('${bUser}')">Unban</button>
-          `;
-          container.appendChild(bRow);
-        });
-      }
-    });
+          requests.forEach(r => {
+            const rRow = document.createElement("div");
+            rRow.className = "user-row";
+            rRow.innerHTML = `
+              <span>${r.username}</span>
+              <div>
+                <button class="btn-warn" style="background:#00a884; color:#111b21;" onclick="approveJoin('${r.socketId}')">Approve</button>
+                <button class="btn-danger" onclick="denyJoin('${r.socketId}')">Deny</button>
+              </div>
+            `;
+            container.appendChild(rRow);
+          });
+        }
 
-    function kickUser(id) { socket.emit("admin-kick-user", { targetSocketId: id }); }
-    function banUser(username, id) { if (confirm(`Ban ${username}?`)) socket.emit("admin-ban-user", { username, targetSocketId: id }); }
-    function unbanUser(username) { if (confirm(`Unban ${username}?`)) socket.emit("admin-unban-user", { username }); }
-    function approveJoin(id) { socket.emit("admin-approve-join", { targetSocketId: id }); }
-    function denyJoin(id) { socket.emit("admin-deny-join", { targetSocketId: id }); }
+        if (userRole === 'admin' && banned && banned.length > 0) {
+          const bTitle = document.createElement("h4");
+          bTitle.style.color = "#ea0038";
+          bTitle.style.marginTop = "10px";
+          bTitle.textContent = "Banned Users";
+          container.appendChild(bTitle);
+
+          banned.forEach(bUser => {
+            const bRow = document.createElement("div");
+            bRow.className = "user-row";
+            bRow.innerHTML = `
+              <span>${bUser}</span>
+              <button class="btn-warn" style="background:#00a884; color:#111b21;" onclick="unbanUser('${bUser}')">Unban</button>
+            `;
+            container.appendChild(bRow);
+          });
+        }
+      });
+    }
+
+    function kickUser(id) { if (socket) socket.emit("admin-kick-user", { targetSocketId: id }); }
+    function banUser(username, id) { if (confirm(`Ban ${username}?`) && socket) socket.emit("admin-ban-user", { username, targetSocketId: id }); }
+    function unbanUser(username) { if (confirm(`Unban ${username}?`) && socket) socket.emit("admin-unban-user", { username }); }
+    function approveJoin(id) { if (socket) socket.emit("admin-approve-join", { targetSocketId: id }); }
+    function denyJoin(id) { if (socket) socket.emit("admin-deny-join", { targetSocketId: id }); }
 
     function openAdminModal() { document.getElementById("adminModal").style.display = "flex"; }
     function closeAdminModal() { document.getElementById("adminModal").style.display = "none"; }
