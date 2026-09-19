@@ -87,7 +87,7 @@
     let userRole = "member";
     let currentPeerId = "";
 
-    // Load saved login details automatically
+    // Pre-fill saved values, but don't auto-login to prevent DOM loading glitches
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("drexqe_user");
       const savedRole = localStorage.getItem("drexqe_role");
@@ -96,10 +96,6 @@
       if (savedUser) document.getElementById("usernameInput").value = savedUser;
       if (savedRole) document.getElementById("roleSelect").value = savedRole;
       if (savedPasskey) document.getElementById("passkeyInput").value = savedPasskey;
-
-      if (savedUser && savedPasskey) {
-        joinChat();
-      }
     });
 
     function initPeer() {
@@ -127,12 +123,9 @@
       currentUser = name;
       userRole = role;
 
-      // Save credentials locally
       localStorage.setItem("drexqe_user", name);
       localStorage.setItem("drexqe_role", role);
       localStorage.setItem("drexqe_passkey", passkey);
-
-      initPeer();
 
       socket.emit("join-room", { 
         room: FIXED_ROOM, 
