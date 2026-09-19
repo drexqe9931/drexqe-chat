@@ -17,14 +17,15 @@
     .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
     .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
     .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; }
+    .msg img { max-width: 100%; max-height: 250px; border-radius: 6px; margin-top: 5px; cursor: pointer; }
     
     .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
     .delete-btn { background: transparent; border: none; color: #8696a0; font-size: 12px; cursor: pointer; padding: 0 4px; }
     .delete-btn:hover { color: #ea0038; }
 
-    footer { background: #202c33; padding: 10px; display: flex; gap: 10px; align-items: center; flex-shrink: 0; z-index: 10; }
+    footer { background: #202c33; padding: 10px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; z-index: 10; }
     input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; font-size: 14px; }
-    button { background: #00a884; border: none; padding: 10px 15px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; font-size: 14px; }
+    button { background: #00a884; border: none; padding: 10px 14px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; font-size: 14px; }
     
     .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 9999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
@@ -34,7 +35,7 @@
     .call-header h4 { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
     .call-header h2 { font-size: 22px; margin-top: 5px; }
     
-    .grid-container { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; align-content: center; padding: 20px 0; overflow-y: auto; }
+    .grid-container { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; align-content: center; padding: 20px 0; overflow-y: auto; }
     .user-card { background: #111b21; border-radius: 16px; border: 2px solid #202c33; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .user-card.speaking { border-color: #00a884; box-shadow: 0 0 12px rgba(0, 168, 132, 0.4); }
     .avatar { width: 60px; height: 60px; background: #6b7c85; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 8px; }
@@ -66,6 +67,8 @@
   <div id="audioContainer"></div>
 
   <footer>
+    <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;" onchange="sendMediaFile(this)">
+    <button type="button" onclick="document.getElementById('mediaInput').click()">📎</button>
     <input type="text" id="msgInput" placeholder="Type a message..." style="flex:1;">
     <button id="recordBtn" onclick="toggleRecording()">🎙️</button>
     <button onclick="sendMessage()">Send</button>
@@ -113,7 +116,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = typeof io !== 'undefined' ? io() : null;
+    const socket = typeof io !== 'undefined' ? io({ reconnection: true, reconnectionAttempts: 10 }) : null;
     const FIXED_ROOM = "01112011";
     
     let localStream = null;
@@ -128,21 +131,10 @@
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
         { urls: 'stun:stun4.l.google.com:19302' },
-        {
-          urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        }
+        { urls: 'turn:global.turn.twilio.com:3478?transport=udp', username: 'guest', credential: 'guest' },
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     };
 
@@ -201,6 +193,20 @@
     }
 
     if (socket) {
+      socket.on("connect", () => {
+        const savedUser = localStorage.getItem("drexqe_user");
+        const savedPasskey = localStorage.getItem("drexqe_passkey");
+        if (savedUser && savedPasskey) {
+          socket.emit("join-room", {
+            room: FIXED_ROOM,
+            user: savedUser,
+            role: localStorage.getItem("drexqe_role") || "member",
+            passkey: savedPasskey,
+            deviceId: deviceId
+          });
+        }
+      });
+
       socket.on("auth-success", () => {
         document.getElementById("loginModal").style.display = "none";
         if (userRole === "admin") document.getElementById("adminBtn").style.display = "inline-block";
@@ -220,6 +226,24 @@
       if (!text) return;
 
       if (socket) socket.emit("chat-message", { room: FIXED_ROOM, payload: { sender: currentUser, text: text } });
+      input.value = "";
+    }
+
+    function sendMediaFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        if (socket) {
+          socket.emit("chat-message", {
+            room: FIXED_ROOM,
+            type: file.type.startsWith("video/") ? "video" : "image",
+            payload: { sender: currentUser, media: e.target.result }
+          });
+        }
+      };
+      reader.readAsDataURL(file);
       input.value = "";
     }
 
@@ -261,8 +285,12 @@
     if (socket) {
       socket.on("chat-message", (data) => {
         const box = document.getElementById("chatBox");
+        if (!box) return;
+
+        if (document.getElementById(data.id)) return;
+
         const div = document.createElement("div");
-        div.id = data.id;
+        div.id = data.id || "msg_" + Math.random().toString(36).substring(2, 9);
 
         if (data.type === "system") {
           div.className = "msg system";
@@ -272,7 +300,7 @@
           div.className = "msg " + (isMe ? "me" : "other");
 
           const canDelete = isMe || userRole === "admin";
-          const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${data.id}', '${data.payload.sender}')">🗑️</button>` : '';
+          const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${div.id}', '${data.payload.sender}')">🗑️</button>` : '';
 
           const headerHtml = `
             <div class="msg-header">
@@ -283,8 +311,12 @@
 
           if (data.type === "voice") {
             div.innerHTML = `${headerHtml}<audio controls src="${data.payload.audio}"></audio>`;
+          } else if (data.type === "image") {
+            div.innerHTML = `${headerHtml}<img src="${data.payload.media}" onclick="window.open(this.src)">`;
+          } else if (data.type === "video") {
+            div.innerHTML = `${headerHtml}<video controls style="max-width:100%; border-radius:6px;" src="${data.payload.media}"></video>`;
           } else {
-            div.innerHTML = `${headerHtml}<span>${data.payload.text}</span>`;
+            div.innerHTML = `${headerHtml}<span>${data.payload.text || ''}</span>`;
           }
         }
 
@@ -322,6 +354,10 @@
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         document.getElementById("callScreen").style.display = "flex";
+        if (!activeCallUsersList.includes(currentUser)) {
+          activeCallUsersList.push(currentUser);
+        }
+        renderCallGrid();
         if (socket) socket.emit("voice-join");
       } catch (err) {
         alert("Microphone permission check failed: " + err.message);
@@ -474,7 +510,7 @@
         
         const avatar = document.createElement("div");
         avatar.className = "avatar";
-        avatar.textContent = user.charAt(0).toUpperCase();
+        avatar.textContent = user ? user.charAt(0).toUpperCase() : "?";
 
         const name = document.createElement("div");
         name.className = "user-name";
