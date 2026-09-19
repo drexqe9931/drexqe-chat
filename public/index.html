@@ -33,10 +33,10 @@
     .user-name { font-size: 14px; font-weight: bold; }
     
     .call-controls { display: flex; justify-content: center; gap: 20px; padding-bottom: 30px; }
-    .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; color: white; }
-    .btn-mute { background: #2a3942; }
-    .btn-mute.muted { background: #f39c12; }
-    .btn-end { background: #ea0038; }
+    .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; color: white; }
+    .btn-control { background: #2a3942; }
+    .btn-control.active { background: #f39c12; }
+    .btn-end { background: #ea0038; transform: rotate(135deg); }
 
     .user-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2a3942; }
     .btn-danger { background: #ea0038; color: #fff; padding: 4px 8px; font-size: 12px; }
@@ -62,7 +62,7 @@
     <button onclick="sendMessage()">Send</button>
   </footer>
 
-  <!-- WhatsApp-Style Group Call Modal -->
+  <!-- Call Modal Screen -->
   <div id="callScreen">
     <div class="call-header">
       <h4>🔒 End-to-End Encrypted</h4>
@@ -72,7 +72,8 @@
     <div class="grid-container" id="callUsersGrid"></div>
 
     <div class="call-controls">
-      <button class="control-btn btn-mute" id="muteBtn" onclick="toggleMute()">🎙️</button>
+      <button class="control-btn btn-control" id="speakerBtn" onclick="toggleSpeaker()">🔊</button>
+      <button class="control-btn btn-control" id="muteBtn" onclick="toggleMute()">🎙️</button>
       <button class="control-btn btn-end" onclick="leaveVoiceCall()">📞</button>
     </div>
   </div>
@@ -106,7 +107,7 @@
     const FIXED_ROOM = "01112011";
     let peer, localStream;
     let isMuted = false;
-    let inCall = false;
+    let isSpeakerOff = false;
 
     let deviceId = localStorage.getItem("drexqe_device_id");
     if (!deviceId) {
@@ -119,7 +120,8 @@
     let currentPeerId = "";
     let activeCallUsersList = [];
 
-    window.addEventListener("DOMContentLoaded", () => {
+    window.addEventListener("load", () => {
+      document.getElementById("loginModal").style.display = "flex";
       const savedUser = localStorage.getItem("drexqe_user");
       const savedRole = localStorage.getItem("drexqe_role");
       const savedPasskey = localStorage.getItem("drexqe_passkey");
@@ -130,7 +132,7 @@
     });
 
     function initPeer() {
-      if (!peer) {
+      if (!peer && typeof Peer !== "undefined") {
         try {
           peer = new Peer();
           peer.on('open', id => { currentPeerId = id; });
@@ -140,7 +142,7 @@
               call.on('stream', remoteStream => playRemoteAudio(call.peer, remoteStream));
             }
           });
-        } catch(e) { console.log("PeerJS init error:", e); }
+        } catch(e) { console.log("PeerJS safe handle:", e); }
       }
     }
 
@@ -239,12 +241,10 @@
       box.scrollTop = box.scrollHeight;
     });
 
-    /* Voice Call Logic */
     function joinVoiceCall() {
       initPeer();
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         localStream = stream;
-        inCall = true;
         document.getElementById("callScreen").style.display = "flex";
         socket.emit("voice-state-change", { inCall: true });
 
@@ -254,7 +254,7 @@
             call.on('stream', remoteStream => playRemoteAudio(call.peer, remoteStream));
           }
         });
-      }).catch(err => alert("Microphone access is required for voice calls."));
+      }).catch(err => alert("Microphone access is required."));
     }
 
     function toggleMute() {
@@ -263,12 +263,27 @@
         localStream.getAudioTracks()[0].enabled = !isMuted;
         const btn = document.getElementById("muteBtn");
         if (isMuted) {
-          btn.classList.add("muted");
+          btn.classList.add("active");
           btn.textContent = "🔇";
         } else {
-          btn.classList.remove("muted");
+          btn.classList.remove("active");
           btn.textContent = "🎙️";
         }
+      }
+    }
+
+    function toggleSpeaker() {
+      isSpeakerOff = !isSpeakerOff;
+      const btn = document.getElementById("speakerBtn");
+      const audioEls = document.querySelectorAll("audio");
+      audioEls.forEach(a => a.muted = isSpeakerOff);
+
+      if (isSpeakerOff) {
+        btn.classList.add("active");
+        btn.textContent = "🔈";
+      } else {
+        btn.classList.remove("active");
+        btn.textContent = "🔊";
       }
     }
 
@@ -277,7 +292,6 @@
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
       }
-      inCall = false;
       document.getElementById("callScreen").style.display = "none";
       socket.emit("voice-state-change", { inCall: false });
     }
@@ -318,6 +332,7 @@
         document.body.appendChild(audio);
       }
       audio.srcObject = stream;
+      audio.muted = isSpeakerOff;
     }
 
     socket.on("warning-notice", (msg) => alert(msg));
