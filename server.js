@@ -8,12 +8,12 @@ const io = new Server(server, { maxHttpBufferSize: 50e6 });
 
 app.use(express.static('public'));
 
-const ROOM_PASSKEY = "1234"; // Default passkey
+const ROOM_PASSKEY = "9460"; // Restored Passkey
 const BANNED_USERS = new Set();
 const BANNED_IDENTIFIERS = new Set();
 const USER_WARNINGS = {};
 const BANNED_WORDS = ["mc", "bc", "madarchod", "bsdk", "gand", "chutiya"];
-const joinRequests = {}; // socketId -> data
+const joinRequests = {};
 
 function normalizeText(text) {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -23,7 +23,6 @@ io.on('connection', (socket) => {
   const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
   socket.on('join-room', ({ room, user, role, passkey, deviceId, peerId }) => {
-    // Check room passkey
     if (passkey !== ROOM_PASSKEY) {
       socket.emit('auth-error', '❌ Incorrect Room Passkey!');
       return;
