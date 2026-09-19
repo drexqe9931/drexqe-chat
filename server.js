@@ -16,7 +16,7 @@ const BANNED_IDENTIFIERS = new Set();
 const USER_WARNINGS = {};
 const BANNED_WORDS = ["mc", "bc", "madarchod", "bsdk", "gand", "chutiya"];
 const joinRequests = {};
-const activeCallUsers = new Map(); // socket.id -> username
+const activeCallUsers = new Map();
 
 function normalizeText(text) {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -57,16 +57,16 @@ io.on('connection', (socket) => {
     updateRoomUsers(room);
   });
 
-  // WebRTC Signaling
+  // Voice Call Handlers
   socket.on('voice-join', () => {
     if (!socket.username || !socket.room) return;
     
     const isFirstCaller = activeCallUsers.size === 0;
     activeCallUsers.set(socket.id, socket.username);
 
-    // Broadcast system message to chat when call starts
     if (isFirstCaller) {
       io.to(socket.room).emit('chat-message', {
+        id: "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
         type: 'system',
         payload: { text: `📞 ${socket.username} started a group voice call` }
       });
@@ -91,9 +91,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Chat & Message Management
   socket.on('chat-message', (data) => {
     const user = socket.username;
     const role = socket.userRole;
+
+    data.id = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
 
     if (role === 'admin' || data.type === 'voice') {
       io.to(data.room).emit('chat-message', data);
@@ -124,6 +127,20 @@ io.on('connection', (socket) => {
     io.to(data.room).emit('chat-message', data);
   });
 
+  socket.on('delete-message', ({ msgId, sender }) => {
+    // Admins can delete any message; users can delete only their own
+    if (socket.userRole === 'admin' || socket.username === sender) {
+      io.to(socket.room).emit('message-deleted', { msgId });
+    }
+  });
+
+  socket.on('admin-clear-all-messages', () => {
+    if (socket.userRole === 'admin') {
+      io.to(socket.room).emit('all-messages-cleared');
+    }
+  });
+
+  // Admin User Controls
   socket.on('admin-approve-join', ({ targetSocketId }) => {
     if (socket.userRole !== 'admin') return;
     const req = joinRequests[targetSocketId];

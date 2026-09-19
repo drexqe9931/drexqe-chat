@@ -9,10 +9,15 @@
     body { background: #111b21; color: #e9edef; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
     header { background: #202c33; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222d34; }
     #chatBox { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-    .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; }
+    .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; }
     .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
     .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
     .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; }
+    
+    .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
+    .delete-btn { background: transparent; border: none; color: #8696a0; font-size: 12px; cursor: pointer; padding: 0 4px; }
+    .delete-btn:hover { color: #ea0038; }
+
     footer { background: #202c33; padding: 10px; display: flex; gap: 10px; align-items: center; }
     input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; }
     button { background: #00a884; border: none; padding: 10px 15px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; }
@@ -20,7 +25,6 @@
     .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
     
-    /* Call Modal Interface */
     #callScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; z-index: 1000; flex-direction: column; justify-content: space-between; padding: 20px; }
     .call-header { text-align: center; padding-top: 20px; }
     .call-header h4 { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
@@ -97,7 +101,8 @@
   <div id="adminModal" class="modal" style="display:none;">
     <div class="modal-content">
       <h3>Manage Users</h3>
-      <div id="userListContainer" style="max-height: 300px; overflow-y: auto; margin: 15px 0;"></div>
+      <button class="btn-danger" style="width:100%; margin: 10px 0; padding: 8px;" onclick="clearAllMessages()">🗑️ Clear All Messages</button>
+      <div id="userListContainer" style="max-height: 250px; overflow-y: auto; margin: 10px 0;"></div>
       <button onclick="closeAdminModal()">Close</button>
     </div>
   </div>
@@ -220,23 +225,57 @@
     socket.on("chat-message", (data) => {
       const box = document.getElementById("chatBox");
       const div = document.createElement("div");
+      div.id = data.id;
 
       if (data.type === "system") {
         div.className = "msg system";
         div.textContent = data.payload.text;
-      } else if (data.type === "voice") {
-        div.className = "msg " + (data.payload.sender === currentUser ? "me" : "other");
-        div.innerHTML = `<strong>${data.payload.sender}:</strong><br><audio controls src="${data.payload.audio}"></audio>`;
       } else {
-        div.className = "msg " + (data.payload.sender === currentUser ? "me" : "other");
-        div.innerHTML = `<strong>${data.payload.sender}:</strong> ${data.payload.text}`;
+        const isMe = data.payload.sender === currentUser;
+        div.className = "msg " + (isMe ? "me" : "other");
+
+        const canDelete = isMe || userRole === "admin";
+        const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${data.id}', '${data.payload.sender}')">🗑️</button>` : '';
+
+        const headerHtml = `
+          <div class="msg-header">
+            <strong>${data.payload.sender}</strong>
+            ${deleteMarkup}
+          </div>
+        `;
+
+        if (data.type === "voice") {
+          div.innerHTML = `${headerHtml}<audio controls src="${data.payload.audio}"></audio>`;
+        } else {
+          div.innerHTML = `${headerHtml}<span>${data.payload.text}</span>`;
+        }
       }
 
       box.appendChild(div);
       box.scrollTop = box.scrollHeight;
     });
 
-    /* Native WebRTC Group Voice Implementation */
+    function deleteMessage(msgId, sender) {
+      if (confirm("Delete this message for everyone?")) {
+        socket.emit("delete-message", { msgId, sender });
+      }
+    }
+
+    socket.on("message-deleted", ({ msgId }) => {
+      const msgElem = document.getElementById(msgId);
+      if (msgElem) msgElem.remove();
+    });
+
+    function clearAllMessages() {
+      if (confirm("Clear all messages for everyone in the chat?")) {
+        socket.emit("admin-clear-all-messages");
+      }
+    }
+
+    socket.on("all-messages-cleared", () => {
+      document.getElementById("chatBox").innerHTML = "";
+    });
+
     async function joinVoiceCall() {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
