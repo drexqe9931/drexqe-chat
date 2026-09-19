@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Drexqe Chat</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background: #111b21; color: #e9edef; display: flex; flex-direction: column; height: 100vh; }
@@ -12,27 +13,38 @@
     .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; }
     .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
     .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
-    footer { background: #202c33; padding: 10px; display: flex; gap: 10px; }
-    input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; }
-    button { background: #00a884; border: none; padding: 10px 20px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; }
+    footer { background: #202c33; padding: 10px; display: flex; gap: 10px; align-items: center; }
+    input[type="text"], input[type="password"] { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; }
+    button { background: #00a884; border: none; padding: 10px 15px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; }
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
     .user-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2a3942; }
     .btn-danger { background: #ea0038; color: #fff; padding: 4px 8px; font-size: 12px; }
     .btn-warn { background: #f39c12; color: #fff; padding: 4px 8px; font-size: 12px; }
+    audio { display: block; margin-top: 5px; max-width: 100%; }
+    #callContainer { background: #005c4b; padding: 8px 15px; display: none; justify-content: space-between; align-items: center; }
   </style>
 </head>
 <body>
 
   <header>
     <h3>Drexqe Chat</h3>
-    <button id="adminBtn" style="display:none;" onclick="openAdminModal()">Admin Panel</button>
+    <div>
+      <button id="voiceCallBtn" onclick="toggleVoiceCall()">📞 Start Voice Call</button>
+      <button id="adminBtn" style="display:none;" onclick="openAdminModal()">Admin Panel</button>
+    </div>
   </header>
+
+  <div id="callContainer">
+    <span>📞 Group Voice Call Active</span>
+    <button onclick="leaveVoiceCall()" class="btn-danger">Leave Call</button>
+  </div>
 
   <div id="chatBox"></div>
 
   <footer>
-    <input type="text" id="msgInput" placeholder="Type a message...">
+    <input type="text" id="msgInput" placeholder="Type a message..." style="flex:1;">
+    <button id="recordBtn" onclick="toggleRecording()">🎙️</button>
     <button onclick="sendMessage()">Send</button>
   </footer>
 
@@ -40,7 +52,8 @@
   <div id="loginModal" class="modal" style="display: flex;">
     <div class="modal-content">
       <h3>Join Chat</h3>
-      <input type="text" id="usernameInput" placeholder="Enter name" style="width:100%; margin: 15px 0;">
+      <input type="text" id="usernameInput" placeholder="Enter name" style="width:100%; margin: 10px 0;">
+      <input type="password" id="passkeyInput" placeholder="Enter Passkey (Default: 1234)" style="width:100%; margin: 10px 0;">
       <button onclick="joinChat()">Join</button>
     </div>
   </div>
@@ -48,7 +61,7 @@
   <!-- Admin Panel Modal -->
   <div id="adminModal" class="modal">
     <div class="modal-content">
-      <h3>Manage Users</h3>
+      <h3>Manage Users & Requests</h3>
       <div id="userListContainer" style="max-height: 300px; overflow-y: auto; margin: 15px 0;"></div>
       <button onclick="closeAdminModal()">Close</button>
     </div>
@@ -58,8 +71,9 @@
   <script>
     const socket = io();
     const FIXED_ROOM = "01112011";
-    
-    // Persistent Device ID across browser sessions & name changes
+    let peer, localStream;
+    let connectedCalls = {};
+
     let deviceId = localStorage.getItem("drexqe_device_id");
     if (!deviceId) {
       deviceId = "dev_" + Math.random().toString(36).substring(2, 15) + Date.now();
@@ -68,21 +82,49 @@
 
     let currentUser = "";
     let userRole = "member";
+    let currentPeerId = "";
+
+    peer = new Peer();
+    peer.on('open', id => { currentPeerId = id; });
+
+    peer.on('call', call => {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        call.answer(stream);
+        call.on('stream', remoteStream => {
+          playRemoteAudio(call.peer, remoteStream);
+        });
+      });
+    });
 
     function joinChat() {
       const name = document.getElementById("usernameInput").value.trim();
-      if (!name) return;
+      const passkey = document.getElementById("passkeyInput").value.trim();
+      if (!name || !passkey) return alert("Enter both name and passkey!");
 
       currentUser = name;
       userRole = (name.toLowerCase() === "drexqe") ? "admin" : "member";
 
-      if (userRole === "admin") {
-        document.getElementById("adminBtn").style.display = "block";
-      }
-
-      socket.emit("join-room", { room: FIXED_ROOM, user: currentUser, role: userRole, deviceId: deviceId });
-      document.getElementById("loginModal").style.display = "none";
+      socket.emit("join-room", { 
+        room: FIXED_ROOM, 
+        user: currentUser, 
+        role: userRole, 
+        passkey: passkey, 
+        deviceId: deviceId,
+        peerId: currentPeerId
+      });
     }
+
+    socket.on("auth-success", () => {
+      document.getElementById("loginModal").style.display = "none";
+      if (userRole === "admin") document.getElementById("adminBtn").style.display = "inline-block";
+    });
+
+    socket.on("auth-error", (msg) => alert(msg));
+    socket.on("pending-approval-notice", (msg) => alert(msg));
+    socket.on("approval-granted", () => {
+      alert("✅ Admin unbanned/approved your access!");
+      document.getElementById("loginModal").style.display = "none";
+    });
 
     function sendMessage() {
       const input = document.getElementById("msgInput");
@@ -93,33 +135,109 @@
       input.value = "";
     }
 
+    // Voice Note Recording
+    let mediaRecorder, audioChunks = [];
+    let isRecording = false;
+
+    function toggleRecording() {
+      const btn = document.getElementById("recordBtn");
+      if (!isRecording) {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+              socket.emit("chat-message", { 
+                room: FIXED_ROOM, 
+                type: "voice",
+                payload: { sender: currentUser, audio: reader.result } 
+              });
+            };
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          btn.style.background = "#ea0038";
+        });
+      } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        btn.style.background = "#00a884";
+      }
+    }
+
     socket.on("chat-message", (data) => {
       const box = document.getElementById("chatBox");
       const div = document.createElement("div");
       div.className = "msg " + (data.payload.sender === currentUser ? "me" : "other");
-      div.innerHTML = `<strong>${data.payload.sender}:</strong> ${data.payload.text}`;
+
+      if (data.type === "voice") {
+        div.innerHTML = `<strong>${data.payload.sender}:</strong><br><audio controls src="${data.payload.audio}"></audio>`;
+      } else {
+        div.innerHTML = `<strong>${data.payload.sender}:</strong> ${data.payload.text}`;
+      }
+
       box.appendChild(div);
       box.scrollTop = box.scrollHeight;
     });
 
-    socket.on("warning-notice", (msg) => {
-      alert(msg);
+    // Group Voice Calling
+    function toggleVoiceCall() {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        localStream = stream;
+        document.getElementById("callContainer").style.display = "flex";
+        
+        // Call all active peers in room
+        activeUsers.forEach(u => {
+          if (u.peerId && u.peerId !== currentPeerId) {
+            const call = peer.call(u.peerId, localStream);
+            call.on('stream', remoteStream => playRemoteAudio(call.peer, remoteStream));
+            connectedCalls[u.peerId] = call;
+          }
+        });
+      });
+    }
+
+    function playRemoteAudio(peerId, stream) {
+      let audio = document.getElementById("audio_" + peerId);
+      if (!audio) {
+        audio = document.createElement("audio");
+        audio.id = "audio_" + peerId;
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+      }
+      audio.srcObject = stream;
+    }
+
+    function leaveVoiceCall() {
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+      document.getElementById("callContainer").style.display = "none";
+    }
+
+    socket.on("warning-notice", (msg) => alert(msg));
+    socket.on("banned-notice", (msg) => { alert(msg); window.location.reload(); });
+    socket.on("kicked-notice", () => { alert("You were kicked!"); window.location.reload(); });
+
+    socket.on("admin-join-request", ({ username }) => {
+      if (userRole === "admin") {
+        alert(`🔒 Banned user "${username}" is attempting to join. Open Admin Panel to approve/unban.`);
+      }
     });
 
-    socket.on("banned-notice", (msg) => {
-      alert(msg);
-      window.location.reload();
-    });
-
-    socket.on("kicked-notice", () => {
-      alert(" You have been kicked by the admin.");
-      window.location.reload();
-    });
-
-    socket.on("update-user-list", ({ users, banned }) => {
+    let activeUsers = [];
+    socket.on("update-user-list", ({ users, banned, requests }) => {
+      activeUsers = users;
       const container = document.getElementById("userListContainer");
       container.innerHTML = "";
-      
+
+      // Active Users
+      const uTitle = document.createElement("h4");
+      uTitle.textContent = "Online Users";
+      container.appendChild(uTitle);
+
       users.forEach(u => {
         const row = document.createElement("div");
         row.className = "user-row";
@@ -136,12 +254,35 @@
         container.appendChild(row);
       });
 
+      // Pending Join Requests from Banned Users
+      if (userRole === 'admin' && requests && requests.length > 0) {
+        const rTitle = document.createElement("h4");
+        rTitle.style.color = "#f39c12";
+        rTitle.style.marginTop = "10px";
+        rTitle.textContent = "Unban Requests";
+        container.appendChild(rTitle);
+
+        requests.forEach(r => {
+          const rRow = document.createElement("div");
+          rRow.className = "user-row";
+          rRow.innerHTML = `
+            <span>${r.username}</span>
+            <div>
+              <button class="btn-warn" style="background:#00a884; color:#111b21;" onclick="approveJoin('${r.socketId}')">Approve/Unban</button>
+              <button class="btn-danger" onclick="denyJoin('${r.socketId}')">Deny</button>
+            </div>
+          `;
+          container.appendChild(rRow);
+        });
+      }
+
+      // Banned List
       if (userRole === 'admin' && banned && banned.length > 0) {
-        const title = document.createElement("h4");
-        title.style.color = "#ea0038";
-        title.style.margin = "10px 0 5px 0";
-        title.textContent = "Banned Users";
-        container.appendChild(title);
+        const bTitle = document.createElement("h4");
+        bTitle.style.color = "#ea0038";
+        bTitle.style.marginTop = "10px";
+        bTitle.textContent = "Banned Users";
+        container.appendChild(bTitle);
 
         banned.forEach(bUser => {
           const bRow = document.createElement("div");
@@ -155,21 +296,11 @@
       }
     });
 
-    function kickUser(id) {
-      socket.emit("admin-kick-user", { targetSocketId: id });
-    }
-
-    function banUser(username, id) {
-      if (confirm(`Ban ${username}?`)) {
-        socket.emit("admin-ban-user", { username: username, targetSocketId: id });
-      }
-    }
-
-    function unbanUser(username) {
-      if (confirm(`Unban ${username}?`)) {
-        socket.emit("admin-unban-user", { username: username });
-      }
-    }
+    function kickUser(id) { socket.emit("admin-kick-user", { targetSocketId: id }); }
+    function banUser(username, id) { if (confirm(`Ban ${username}?`)) socket.emit("admin-ban-user", { username, targetSocketId: id }); }
+    function unbanUser(username) { if (confirm(`Unban ${username}?`)) socket.emit("admin-unban-user", { username }); }
+    function approveJoin(id) { socket.emit("admin-approve-join", { targetSocketId: id }); }
+    function denyJoin(id) { socket.emit("admin-deny-join", { targetSocketId: id }); }
 
     function openAdminModal() { document.getElementById("adminModal").style.display = "flex"; }
     function closeAdminModal() { document.getElementById("adminModal").style.display = "none"; }
