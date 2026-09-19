@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Drexqe Chat</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background: #111b21; color: #e9edef; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -13,6 +12,7 @@
     .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; }
     .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
     .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
+    .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; }
     footer { background: #202c33; padding: 10px; display: flex; gap: 10px; align-items: center; }
     input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; }
     button { background: #00a884; border: none; padding: 10px 15px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; }
@@ -20,14 +20,14 @@
     .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
     
-    /* WhatsApp Call Screen UI */
+    /* Call Modal Interface */
     #callScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; z-index: 1000; flex-direction: column; justify-content: space-between; padding: 20px; }
     .call-header { text-align: center; padding-top: 20px; }
     .call-header h4 { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
     .call-header h2 { font-size: 22px; margin-top: 5px; }
     
     .grid-container { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; align-content: center; padding: 20px 0; overflow-y: auto; }
-    .user-card { background: #111b21; border-radius: 16px; border: 2px solid #202c33; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+    .user-card { background: #111b21; border-radius: 16px; border: 2px solid #202c33; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .user-card.speaking { border-color: #00a884; box-shadow: 0 0 12px rgba(0, 168, 132, 0.4); }
     .avatar { width: 60px; height: 60px; background: #6b7c85; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 8px; }
     .user-name { font-size: 14px; font-weight: bold; }
@@ -41,7 +41,7 @@
     .user-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2a3942; }
     .btn-danger { background: #ea0038; color: #fff; padding: 4px 8px; font-size: 12px; }
     .btn-warn { background: #f39c12; color: #fff; padding: 4px 8px; font-size: 12px; }
-    audio { display: none; }
+    #audioContainer { display: none; }
   </style>
 </head>
 <body>
@@ -55,6 +55,7 @@
   </header>
 
   <div id="chatBox"></div>
+  <div id="audioContainer"></div>
 
   <footer>
     <input type="text" id="msgInput" placeholder="Type a message..." style="flex:1;">
@@ -105,9 +106,18 @@
   <script>
     const socket = io();
     const FIXED_ROOM = "01112011";
-    let peer, localStream;
+    
+    let localStream = null;
+    let peerConnections = {};
     let isMuted = false;
     let isSpeakerOff = false;
+
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
 
     let deviceId = localStorage.getItem("drexqe_device_id");
     if (!deviceId) {
@@ -117,7 +127,6 @@
 
     let currentUser = "";
     let userRole = "member";
-    let currentPeerId = "";
     let activeCallUsersList = [];
 
     window.addEventListener("load", () => {
@@ -130,21 +139,6 @@
       if (savedRole) document.getElementById("roleSelect").value = savedRole;
       if (savedPasskey) document.getElementById("passkeyInput").value = savedPasskey;
     });
-
-    function initPeer() {
-      if (!peer && typeof Peer !== "undefined") {
-        try {
-          peer = new Peer();
-          peer.on('open', id => { currentPeerId = id; });
-          peer.on('call', call => {
-            if (localStream) {
-              call.answer(localStream);
-              call.on('stream', remoteStream => playRemoteAudio(call.peer, remoteStream));
-            }
-          });
-        } catch(e) { console.log("PeerJS safe handle:", e); }
-      }
-    }
 
     function joinChat() {
       const name = document.getElementById("usernameInput").value.trim();
@@ -160,15 +154,12 @@
       localStorage.setItem("drexqe_role", role);
       localStorage.setItem("drexqe_passkey", passkey);
 
-      initPeer();
-
       socket.emit("join-room", { 
         room: FIXED_ROOM, 
         user: currentUser, 
         role: userRole, 
         passkey: passkey, 
-        deviceId: deviceId,
-        peerId: currentPeerId
+        deviceId: deviceId
       });
     }
 
@@ -229,11 +220,15 @@
     socket.on("chat-message", (data) => {
       const box = document.getElementById("chatBox");
       const div = document.createElement("div");
-      div.className = "msg " + (data.payload.sender === currentUser ? "me" : "other");
 
-      if (data.type === "voice") {
+      if (data.type === "system") {
+        div.className = "msg system";
+        div.textContent = data.payload.text;
+      } else if (data.type === "voice") {
+        div.className = "msg " + (data.payload.sender === currentUser ? "me" : "other");
         div.innerHTML = `<strong>${data.payload.sender}:</strong><br><audio controls src="${data.payload.audio}"></audio>`;
       } else {
+        div.className = "msg " + (data.payload.sender === currentUser ? "me" : "other");
         div.innerHTML = `<strong>${data.payload.sender}:</strong> ${data.payload.text}`;
       }
 
@@ -241,21 +236,87 @@
       box.scrollTop = box.scrollHeight;
     });
 
-    function joinVoiceCall() {
-      initPeer();
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-        localStream = stream;
+    /* Native WebRTC Group Voice Implementation */
+    async function joinVoiceCall() {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         document.getElementById("callScreen").style.display = "flex";
-        socket.emit("voice-state-change", { inCall: true });
-
-        activeUsers.forEach(u => {
-          if (u.peerId && u.peerId !== currentPeerId) {
-            const call = peer.call(u.peerId, localStream);
-            call.on('stream', remoteStream => playRemoteAudio(call.peer, remoteStream));
-          }
-        });
-      }).catch(err => alert("Microphone access is required."));
+        socket.emit("voice-join");
+      } catch (err) {
+        alert("Microphone permission required to join call.");
+      }
     }
+
+    socket.on("call-peers-list", (peers) => {
+      peers.forEach(peerId => createPeerConnection(peerId, true));
+    });
+
+    socket.on("user-joined-call", ({ socketId }) => {
+      createPeerConnection(socketId, false);
+    });
+
+    function createPeerConnection(targetSocketId, isInitiator) {
+      if (peerConnections[targetSocketId]) return;
+
+      const pc = new RTCPeerConnection(rtcConfig);
+      peerConnections[targetSocketId] = pc;
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      }
+
+      pc.ontrack = (event) => {
+        let audio = document.getElementById("audio_" + targetSocketId);
+        if (!audio) {
+          audio = document.createElement("audio");
+          audio.id = "audio_" + targetSocketId;
+          audio.autoplay = true;
+          document.getElementById("audioContainer").appendChild(audio);
+        }
+        audio.srcObject = event.streams[0];
+        audio.muted = isSpeakerOff;
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit("voice-signal", { target: targetSocketId, signal: { candidate: event.candidate } });
+        }
+      };
+
+      if (isInitiator) {
+        pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
+          socket.emit("voice-signal", { target: targetSocketId, signal: { sdp: pc.localDescription } });
+        });
+      }
+    }
+
+    socket.on("voice-signal", async ({ sender, signal }) => {
+      let pc = peerConnections[sender];
+      if (!pc) {
+        createPeerConnection(sender, false);
+        pc = peerConnections[sender];
+      }
+
+      if (signal.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        if (signal.sdp.type === 'offer') {
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit("voice-signal", { target: sender, signal: { sdp: pc.localDescription } });
+        }
+      } else if (signal.candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+      }
+    });
+
+    socket.on("user-left-call", ({ socketId }) => {
+      if (peerConnections[socketId]) {
+        peerConnections[socketId].close();
+        delete peerConnections[socketId];
+      }
+      const audio = document.getElementById("audio_" + socketId);
+      if (audio) audio.remove();
+    });
 
     function toggleMute() {
       if (localStream) {
@@ -275,7 +336,7 @@
     function toggleSpeaker() {
       isSpeakerOff = !isSpeakerOff;
       const btn = document.getElementById("speakerBtn");
-      const audioEls = document.querySelectorAll("audio");
+      const audioEls = document.querySelectorAll("#audioContainer audio");
       audioEls.forEach(a => a.muted = isSpeakerOff);
 
       if (isSpeakerOff) {
@@ -292,8 +353,13 @@
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
       }
+      Object.keys(peerConnections).forEach(id => {
+        peerConnections[id].close();
+        delete peerConnections[id];
+      });
+      document.getElementById("audioContainer").innerHTML = "";
       document.getElementById("callScreen").style.display = "none";
-      socket.emit("voice-state-change", { inCall: false });
+      socket.emit("voice-leave");
     }
 
     socket.on("update-call-users", (callUsers) => {
@@ -321,18 +387,6 @@
         card.appendChild(name);
         grid.appendChild(card);
       });
-    }
-
-    function playRemoteAudio(peerId, stream) {
-      let audio = document.getElementById("audio_" + peerId);
-      if (!audio) {
-        audio = document.createElement("audio");
-        audio.id = "audio_" + peerId;
-        audio.autoplay = true;
-        document.body.appendChild(audio);
-      }
-      audio.srcObject = stream;
-      audio.muted = isSpeakerOff;
     }
 
     socket.on("warning-notice", (msg) => alert(msg));

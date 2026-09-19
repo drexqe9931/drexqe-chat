@@ -16,7 +16,7 @@ const BANNED_IDENTIFIERS = new Set();
 const USER_WARNINGS = {};
 const BANNED_WORDS = ["mc", "bc", "madarchod", "bsdk", "gand", "chutiya"];
 const joinRequests = {};
-const activeCallUsers = new Set();
+const activeCallUsers = new Map(); // socket.id -> username
 
 function normalizeText(text) {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -25,7 +25,7 @@ function normalizeText(text) {
 io.on('connection', (socket) => {
   const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-  socket.on('join-room', ({ room, user, role, passkey, deviceId, peerId }) => {
+  socket.on('join-room', ({ room, user, role, passkey, deviceId }) => {
     if (role === 'admin' && passkey !== ADMIN_PASSKEY) {
       socket.emit('auth-error', '❌ Incorrect Admin Passkey!');
       return;
@@ -40,7 +40,6 @@ io.on('connection', (socket) => {
     socket.room = room;
     socket.deviceId = deviceId;
     socket.clientIp = clientIp;
-    socket.peerId = peerId;
 
     const isBanned = BANNED_USERS.has(user) || 
                      (deviceId && BANNED_IDENTIFIERS.has(deviceId)) || 
@@ -58,14 +57,38 @@ io.on('connection', (socket) => {
     updateRoomUsers(room);
   });
 
-  socket.on('voice-state-change', ({ inCall }) => {
-    if (!socket.username) return;
-    if (inCall) {
-      activeCallUsers.add(socket.username);
-    } else {
-      activeCallUsers.delete(socket.username);
+  // WebRTC Signaling
+  socket.on('voice-join', () => {
+    if (!socket.username || !socket.room) return;
+    
+    const isFirstCaller = activeCallUsers.size === 0;
+    activeCallUsers.set(socket.id, socket.username);
+
+    // Broadcast system message to chat when call starts
+    if (isFirstCaller) {
+      io.to(socket.room).emit('chat-message', {
+        type: 'system',
+        payload: { text: `📞 ${socket.username} started a group voice call` }
+      });
     }
-    io.to(socket.room).emit('update-call-users', Array.from(activeCallUsers));
+
+    const existingUsers = Array.from(activeCallUsers.keys()).filter(id => id !== socket.id);
+    socket.emit('call-peers-list', existingUsers);
+    
+    socket.to(socket.room).emit('user-joined-call', { socketId: socket.id, username: socket.username });
+    io.to(socket.room).emit('update-call-users', Array.from(activeCallUsers.values()));
+  });
+
+  socket.on('voice-signal', ({ target, signal }) => {
+    io.to(target).emit('voice-signal', { sender: socket.id, signal });
+  });
+
+  socket.on('voice-leave', () => {
+    if (activeCallUsers.has(socket.id)) {
+      activeCallUsers.delete(socket.id);
+      socket.to(socket.room).emit('user-left-call', { socketId: socket.id });
+      io.to(socket.room).emit('update-call-users', Array.from(activeCallUsers.values()));
+    }
   });
 
   socket.on('chat-message', (data) => {
@@ -166,11 +189,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    if (socket.username) activeCallUsers.delete(socket.username);
+    if (activeCallUsers.has(socket.id)) {
+      activeCallUsers.delete(socket.id);
+      socket.to(socket.room).emit('user-left-call', { socketId: socket.id });
+      io.to(socket.room).emit('update-call-users', Array.from(activeCallUsers.values()));
+    }
     delete joinRequests[socket.id];
     if (socket.room) {
       updateRoomUsers(socket.room);
-      io.to(socket.room).emit('update-call-users', Array.from(activeCallUsers));
     }
   });
 
@@ -184,8 +210,7 @@ io.on('connection', (socket) => {
           userList.push({ 
             id, 
             username: clientSocket.username, 
-            role: clientSocket.userRole,
-            peerId: clientSocket.peerId 
+            role: clientSocket.userRole
           });
         }
       }
