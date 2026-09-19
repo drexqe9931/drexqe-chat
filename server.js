@@ -8,7 +8,7 @@ const io = new Server(server, { maxHttpBufferSize: 50e6 });
 
 app.use(express.static('public'));
 
-const ROOM_PASSKEY = "9460"; // Restored Passkey
+const ROOM_PASSKEY = "9460";
 const BANNED_USERS = new Set();
 const BANNED_IDENTIFIERS = new Set();
 const USER_WARNINGS = {};
