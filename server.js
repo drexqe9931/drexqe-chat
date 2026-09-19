@@ -8,12 +8,15 @@ const io = new Server(server, { maxHttpBufferSize: 50e6 });
 
 app.use(express.static('public'));
 
-const ROOM_PASSKEY = "9460";
+const MEMBER_PASSKEY = "9460";
+const ADMIN_PASSKEY = "M4nil@l019";
+
 const BANNED_USERS = new Set();
 const BANNED_IDENTIFIERS = new Set();
 const USER_WARNINGS = {};
 const BANNED_WORDS = ["mc", "bc", "madarchod", "bsdk", "gand", "chutiya"];
 const joinRequests = {};
+const activeCallUsers = new Set();
 
 function normalizeText(text) {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -23,8 +26,12 @@ io.on('connection', (socket) => {
   const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
   socket.on('join-room', ({ room, user, role, passkey, deviceId, peerId }) => {
-    if (passkey !== ROOM_PASSKEY) {
-      socket.emit('auth-error', '❌ Incorrect Room Passkey!');
+    if (role === 'admin' && passkey !== ADMIN_PASSKEY) {
+      socket.emit('auth-error', '❌ Incorrect Admin Passkey!');
+      return;
+    }
+    if (role === 'member' && passkey !== MEMBER_PASSKEY) {
+      socket.emit('auth-error', '❌ Incorrect Passkey!');
       return;
     }
 
@@ -41,7 +48,7 @@ io.on('connection', (socket) => {
 
     if (isBanned && role !== 'admin') {
       joinRequests[socket.id] = { socketId: socket.id, username: user, role, room, deviceId, clientIp };
-      socket.emit('pending-approval-notice', '🔒 You are banned. A join request has been sent to the Admin.');
+      socket.emit('pending-approval-notice', '🔒 You are banned. Request sent to Admin.');
       io.to(room).emit('admin-join-request', { socketId: socket.id, username: user });
       return;
     }
@@ -49,6 +56,16 @@ io.on('connection', (socket) => {
     socket.join(room);
     socket.emit('auth-success');
     updateRoomUsers(room);
+  });
+
+  socket.on('voice-state-change', ({ inCall }) => {
+    if (!socket.username) return;
+    if (inCall) {
+      activeCallUsers.add(socket.username);
+    } else {
+      activeCallUsers.delete(socket.username);
+    }
+    io.to(socket.room).emit('update-call-users', Array.from(activeCallUsers));
   });
 
   socket.on('chat-message', (data) => {
@@ -60,16 +77,8 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const rawText = data.payload.text || '';
-    const cleanText = normalizeText(rawText);
-    
-    let isAbusive = false;
-    for (const word of BANNED_WORDS) {
-      if (cleanText.includes(word)) {
-        isAbusive = true;
-        break;
-      }
-    }
+    const cleanText = normalizeText(data.payload.text || '');
+    let isAbusive = BANNED_WORDS.some(word => cleanText.includes(word));
 
     if (isAbusive) {
       USER_WARNINGS[user] = (USER_WARNINGS[user] || 0) + 1;
@@ -80,11 +89,11 @@ io.on('connection', (socket) => {
         if (socket.deviceId) BANNED_IDENTIFIERS.add(socket.deviceId);
         if (socket.clientIp) BANNED_IDENTIFIERS.add(socket.clientIp);
 
-        socket.emit('banned-notice', '🚫 You have been automatically banned for using abusive language 3 times.');
+        socket.emit('banned-notice', '🚫 Banned for abusive language.');
         socket.disconnect(true);
         if (socket.room) updateRoomUsers(socket.room);
       } else {
-        socket.emit('warning-notice', `⚠️ Warning ${count}/3: Refrain from using abusive language!`);
+        socket.emit('warning-notice', `⚠️ Warning ${count}/3: Avoid abusive language.`);
       }
       return;
     }
@@ -94,7 +103,6 @@ io.on('connection', (socket) => {
 
   socket.on('admin-approve-join', ({ targetSocketId }) => {
     if (socket.userRole !== 'admin') return;
-
     const req = joinRequests[targetSocketId];
     if (req) {
       BANNED_USERS.delete(req.username);
@@ -114,13 +122,12 @@ io.on('connection', (socket) => {
 
   socket.on('admin-deny-join', ({ targetSocketId }) => {
     if (socket.userRole !== 'admin') return;
-
     const req = joinRequests[targetSocketId];
     if (req) {
       delete joinRequests[targetSocketId];
       const targetSocket = io.sockets.sockets.get(targetSocketId);
       if (targetSocket) {
-        targetSocket.emit('approval-denied', '🚫 Your request to unban/join was denied by the Admin.');
+        targetSocket.emit('approval-denied', '🚫 Request denied by Admin.');
         targetSocket.disconnect(true);
       }
     }
@@ -133,7 +140,7 @@ io.on('connection', (socket) => {
       if (targetSocket) {
         if (targetSocket.deviceId) BANNED_IDENTIFIERS.add(targetSocket.deviceId);
         if (targetSocket.clientIp) BANNED_IDENTIFIERS.add(targetSocket.clientIp);
-        targetSocket.emit('banned-notice', '🚫 You have been permanently banned by an admin.');
+        targetSocket.emit('banned-notice', '🚫 Permanently banned by Admin.');
         targetSocket.disconnect(true);
       }
       updateRoomUsers(socket.room);
@@ -159,8 +166,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    if (socket.username) activeCallUsers.delete(socket.username);
     delete joinRequests[socket.id];
-    if (socket.room) updateRoomUsers(socket.room);
+    if (socket.room) {
+      updateRoomUsers(socket.room);
+      io.to(socket.room).emit('update-call-users', Array.from(activeCallUsers));
+    }
   });
 
   function updateRoomUsers(room) {

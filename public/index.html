@@ -7,7 +7,7 @@
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background: #111b21; color: #e9edef; display: flex; flex-direction: column; height: 100vh; }
+    body { background: #111b21; color: #e9edef; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
     header { background: #202c33; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222d34; }
     #chatBox { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
     .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; }
@@ -16,13 +16,32 @@
     footer { background: #202c33; padding: 10px; display: flex; gap: 10px; align-items: center; }
     input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; }
     button { background: #00a884; border: none; padding: 10px 15px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; }
+    
     .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
+    
+    /* WhatsApp Call Screen UI */
+    #callScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; z-index: 1000; flex-direction: column; justify-content: space-between; padding: 20px; }
+    .call-header { text-align: center; padding-top: 20px; }
+    .call-header h4 { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+    .call-header h2 { font-size: 22px; margin-top: 5px; }
+    
+    .grid-container { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; align-content: center; padding: 20px 0; overflow-y: auto; }
+    .user-card { background: #111b21; border-radius: 16px; border: 2px solid #202c33; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+    .user-card.speaking { border-color: #00a884; box-shadow: 0 0 12px rgba(0, 168, 132, 0.4); }
+    .avatar { width: 60px; height: 60px; background: #6b7c85; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+    .user-name { font-size: 14px; font-weight: bold; }
+    
+    .call-controls { display: flex; justify-content: center; gap: 20px; padding-bottom: 30px; }
+    .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; color: white; }
+    .btn-mute { background: #2a3942; }
+    .btn-mute.muted { background: #f39c12; }
+    .btn-end { background: #ea0038; }
+
     .user-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2a3942; }
     .btn-danger { background: #ea0038; color: #fff; padding: 4px 8px; font-size: 12px; }
     .btn-warn { background: #f39c12; color: #fff; padding: 4px 8px; font-size: 12px; }
-    audio { display: block; margin-top: 5px; max-width: 100%; }
-    #callContainer { background: #005c4b; padding: 8px 15px; display: none; justify-content: space-between; align-items: center; }
+    audio { display: none; }
   </style>
 </head>
 <body>
@@ -30,15 +49,10 @@
   <header>
     <h3>Drexqe Chat</h3>
     <div>
-      <button id="voiceCallBtn" onclick="toggleVoiceCall()">📞 Voice Call</button>
+      <button id="voiceCallBtn" onclick="joinVoiceCall()">📞 Voice Call</button>
       <button id="adminBtn" style="display:none;" onclick="openAdminModal()">Admin Panel</button>
     </div>
   </header>
-
-  <div id="callContainer">
-    <span>📞 Group Voice Call Active</span>
-    <button onclick="leaveVoiceCall()" class="btn-danger">Leave</button>
-  </div>
 
   <div id="chatBox"></div>
 
@@ -47,6 +61,21 @@
     <button id="recordBtn" onclick="toggleRecording()">🎙️</button>
     <button onclick="sendMessage()">Send</button>
   </footer>
+
+  <!-- WhatsApp-Style Group Call Modal -->
+  <div id="callScreen">
+    <div class="call-header">
+      <h4>🔒 End-to-End Encrypted</h4>
+      <h2>Group Voice Call</h2>
+    </div>
+
+    <div class="grid-container" id="callUsersGrid"></div>
+
+    <div class="call-controls">
+      <button class="control-btn btn-mute" id="muteBtn" onclick="toggleMute()">🎙️</button>
+      <button class="control-btn btn-end" onclick="leaveVoiceCall()">📞</button>
+    </div>
+  </div>
 
   <!-- Login Modal -->
   <div id="loginModal" class="modal">
@@ -76,6 +105,8 @@
     const socket = io();
     const FIXED_ROOM = "01112011";
     let peer, localStream;
+    let isMuted = false;
+    let inCall = false;
 
     let deviceId = localStorage.getItem("drexqe_device_id");
     if (!deviceId) {
@@ -86,8 +117,8 @@
     let currentUser = "";
     let userRole = "member";
     let currentPeerId = "";
+    let activeCallUsersList = [];
 
-    // Pre-fill saved values, but don't auto-login to prevent DOM loading glitches
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("drexqe_user");
       const savedRole = localStorage.getItem("drexqe_role");
@@ -104,12 +135,12 @@
           peer = new Peer();
           peer.on('open', id => { currentPeerId = id; });
           peer.on('call', call => {
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-              call.answer(stream);
+            if (localStream) {
+              call.answer(localStream);
               call.on('stream', remoteStream => playRemoteAudio(call.peer, remoteStream));
-            });
+            }
           });
-        } catch(e) { console.log("PeerJS error handled safely:", e); }
+        } catch(e) { console.log("PeerJS init error:", e); }
       }
     }
 
@@ -118,7 +149,7 @@
       const role = document.getElementById("roleSelect").value;
       const passkey = document.getElementById("passkeyInput").value.trim();
 
-      if (!name || !passkey) return alert("Enter both username and passkey!");
+      if (!name || !passkey) return alert("Enter username and passkey!");
 
       currentUser = name;
       userRole = role;
@@ -126,6 +157,8 @@
       localStorage.setItem("drexqe_user", name);
       localStorage.setItem("drexqe_role", role);
       localStorage.setItem("drexqe_passkey", passkey);
+
+      initPeer();
 
       socket.emit("join-room", { 
         room: FIXED_ROOM, 
@@ -145,7 +178,7 @@
     socket.on("auth-error", (msg) => alert(msg));
     socket.on("pending-approval-notice", (msg) => alert(msg));
     socket.on("approval-granted", () => {
-      alert("✅ Admin unbanned/approved your access!");
+      alert("✅ Request approved by Admin!");
       document.getElementById("loginModal").style.display = "none";
     });
 
@@ -206,17 +239,73 @@
       box.scrollTop = box.scrollHeight;
     });
 
-    function toggleVoiceCall() {
+    /* Voice Call Logic */
+    function joinVoiceCall() {
       initPeer();
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         localStream = stream;
-        document.getElementById("callContainer").style.display = "flex";
+        inCall = true;
+        document.getElementById("callScreen").style.display = "flex";
+        socket.emit("voice-state-change", { inCall: true });
+
         activeUsers.forEach(u => {
           if (u.peerId && u.peerId !== currentPeerId) {
             const call = peer.call(u.peerId, localStream);
             call.on('stream', remoteStream => playRemoteAudio(call.peer, remoteStream));
           }
         });
+      }).catch(err => alert("Microphone access is required for voice calls."));
+    }
+
+    function toggleMute() {
+      if (localStream) {
+        isMuted = !isMuted;
+        localStream.getAudioTracks()[0].enabled = !isMuted;
+        const btn = document.getElementById("muteBtn");
+        if (isMuted) {
+          btn.classList.add("muted");
+          btn.textContent = "🔇";
+        } else {
+          btn.classList.remove("muted");
+          btn.textContent = "🎙️";
+        }
+      }
+    }
+
+    function leaveVoiceCall() {
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      inCall = false;
+      document.getElementById("callScreen").style.display = "none";
+      socket.emit("voice-state-change", { inCall: false });
+    }
+
+    socket.on("update-call-users", (callUsers) => {
+      activeCallUsersList = callUsers;
+      renderCallGrid();
+    });
+
+    function renderCallGrid() {
+      const grid = document.getElementById("callUsersGrid");
+      grid.innerHTML = "";
+
+      activeCallUsersList.forEach(user => {
+        const card = document.createElement("div");
+        card.className = "user-card speaking";
+        
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        avatar.textContent = user.charAt(0).toUpperCase();
+
+        const name = document.createElement("div");
+        name.className = "user-name";
+        name.textContent = user === currentUser ? `${user} (You)` : user;
+
+        card.appendChild(avatar);
+        card.appendChild(name);
+        grid.appendChild(card);
       });
     }
 
@@ -229,11 +318,6 @@
         document.body.appendChild(audio);
       }
       audio.srcObject = stream;
-    }
-
-    function leaveVoiceCall() {
-      if (localStream) localStream.getTracks().forEach(t => t.stop());
-      document.getElementById("callContainer").style.display = "none";
     }
 
     socket.on("warning-notice", (msg) => alert(msg));
