@@ -1,4 +1,7 @@
-const express = require('express');
+import re
+
+# Update server.js with IP + Device ID banning and Unban functionality
+server_code = '''const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
@@ -8,22 +11,28 @@ const io = new Server(server, { maxHttpBufferSize: 50e6 });
 
 app.use(express.static('public'));
 
-const bannedUsers = new Set();
-const joinRequests = {}; // socketId -> { socketId, username, role, room }
+const BANNED_USERS = new Set();
+const BANNED_IDENTIFIERS = new Set(); // Stores IPs and Device IDs
+const joinRequests = {}; // socketId -> data
 let messageHistory = [];
 
 io.on('connection', (socket) => {
+  const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-  socket.on('join-room', ({ room, user, role }) => {
+  socket.on('join-room', ({ room, user, role, deviceId }) => {
     socket.username = user;
     socket.userRole = role;
     socket.room = room;
+    socket.deviceId = deviceId;
+    socket.clientIp = clientIp;
 
-    if (bannedUsers.has(user)) {
-      joinRequests[socket.id] = { socketId: socket.id, username: user, role, room };
-      socket.emit('pending-approval-notice', '🔒 You are banned. A join request has been sent to the Admin for approval.');
-      
-      // Send request to all admin sockets in the room
+    const isBanned = BANNED_USERS.has(user) || 
+                     (deviceId && BANNED_IDENTIFIERS.has(deviceId)) || 
+                     BANNED_IDENTIFIERS.has(clientIp);
+
+    if (isBanned && role !== 'admin') {
+      joinRequests[socket.id] = { socketId: socket.id, username: user, role, room, deviceId, clientIp };
+      socket.emit('pending-approval-notice', '🔒 You are banned from this group. A join request has been sent to the Admin.');
       io.to(room).emit('admin-join-request', { socketId: socket.id, username: user, role });
       return;
     }
@@ -39,8 +48,11 @@ io.on('connection', (socket) => {
     io.to(data.room).emit('chat-message', data);
   });
 
-  socket.on('auto-ban-user', ({ username }) => {
-    bannedUsers.add(username);
+  socket.on('auto-ban-user', ({ username, deviceId }) => {
+    BANNED_USERS.add(username);
+    if (deviceId) BANNED_IDENTIFIERS.add(deviceId);
+    if (socket.clientIp) BANNED_IDENTIFIERS.add(socket.clientIp);
+
     socket.emit('banned-notice', '🚫 You have been automatically banned for using abusive language 3 times.');
     socket.disconnect(true);
     if (socket.room) updateRoomUsers(socket.room);
@@ -53,7 +65,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('admin-kick-user', ({ targetSocketId, room }) => {
+  socket.on('admin-kick-user', ({ targetSocketId }) => {
     if (socket.userRole === 'admin') {
       const targetSocket = io.sockets.sockets.get(targetSocketId);
       if (targetSocket) {
@@ -63,14 +75,23 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('admin-ban-user', ({ username, targetSocketId, room }) => {
+  socket.on('admin-ban-user', ({ username, targetSocketId }) => {
     if (socket.userRole === 'admin') {
-      bannedUsers.add(username);
+      BANNED_USERS.add(username);
       const targetSocket = io.sockets.sockets.get(targetSocketId);
       if (targetSocket) {
-        targetSocket.emit('banned-notice', '🚫 You have been banned from this group by an admin.');
+        if (targetSocket.deviceId) BANNED_IDENTIFIERS.add(targetSocket.deviceId);
+        if (targetSocket.clientIp) BANNED_IDENTIFIERS.add(targetSocket.clientIp);
+        targetSocket.emit('banned-notice', '🚫 You have been permanently banned by an admin.');
         targetSocket.disconnect(true);
       }
+    }
+  });
+
+  socket.on('admin-unban-user', ({ username }) => {
+    if (socket.userRole === 'admin') {
+      BANNED_USERS.delete(username);
+      io.to(socket.room).emit('system-notice', `User ${username} was unbanned by Admin.`);
     }
   });
 
@@ -79,7 +100,9 @@ io.on('connection', (socket) => {
 
     const req = joinRequests[targetSocketId];
     if (req) {
-      bannedUsers.delete(req.username);
+      BANNED_USERS.delete(req.username);
+      if (req.deviceId) BANNED_IDENTIFIERS.delete(req.deviceId);
+      if (req.clientIp) BANNED_IDENTIFIERS.delete(req.clientIp);
       delete joinRequests[targetSocketId];
 
       const targetSocket = io.sockets.sockets.get(targetSocketId);
@@ -126,9 +149,15 @@ io.on('connection', (socket) => {
         }
       }
     }
-    io.to(room).emit('update-user-list', userList);
+    io.to(room).emit('update-user-list', { users: userList, banned: Array.from(BANNED_USERS) });
   }
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+'''
+
+with open("server.js", "w") as f:
+    f.write(server_code)
+
+print("[✓] server.js patched.")
