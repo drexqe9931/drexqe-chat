@@ -565,3 +565,11 @@
   </script>
 </body>
 </html>
+
+  <script>
+    socket.on('banned-user-attempt', (data) => {
+      if (currentRole === 'admin') {
+        alert(`🚨 Banned User Attempt:\nUsername: ${data.username}\nTime: ${data.time}`);
+      }
+    });
+  </script>
