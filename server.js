@@ -1,200 +1,173 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server);
 
-// Increased maxHttpBufferSize to 100MB for faster/larger file uploads
-const io = new Server(server, { 
-  maxHttpBufferSize: 1e8,
-  cors: { origin: "*" } 
-});
+const PORT = process.env.PORT || 3000;
+const PASSKEYS = { member: "110202", admin: "1102" };
+const MSG_FILE = path.join(__dirname, 'messages.json');
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-// Passkeys
-const ADMIN_PASSKEY = "M4nil@l019";
-const MEMBER_PASSKEY = "9460";
-
-// Persistent Ban Stores
-const bannedUsers = new Set();
-const bannedDevices = new Set();
-const userWarnings = {};
-const callUsers = {};
-const userDeviceMap = {};
-
-const ABUSIVE_WORDS = ['mc', 'bc', 'madarchod', 'bhenchod', 'gand', 'chutiya', 'bhosdike', 'fuck', 'bitch'];
-
-function containsAbuse(text) {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  return ABUSIVE_WORDS.some(word => lower.includes(word));
+let chatHistory = [];
+if (fs.existsSync(MSG_FILE)) {
+  try {
+    chatHistory = JSON.parse(fs.readFileSync(MSG_FILE, 'utf8'));
+  } catch (err) {
+    chatHistory = [];
+  }
 }
 
+function saveMessages() {
+  fs.writeFileSync(MSG_FILE, JSON.stringify(chatHistory, null, 2));
+}
+
+let bannedUsers = [];
+let bannedDevices = [];
+let deviceWarnings = {};
+let activeVoiceUsers = {};
+
+const BANNED_WORDS = ["badword1", "badword2", "spam", "abuse", "fuck", "shit", "bitch"];
+
 io.on('connection', (socket) => {
-
   socket.on('join-room', ({ room, user, role, passkey, deviceId }) => {
-    const normUser = user.toLowerCase();
-
-    if (bannedUsers.has(normUser) || (deviceId && bannedDevices.has(deviceId))) {
-      return socket.emit('auth-error', 'You are banned from joining this room.');
+    if (bannedUsers.includes(user) || bannedDevices.includes(deviceId)) {
+      return socket.emit('auth-error', 'Your username or device is permanently banned from this chat.');
     }
 
-    if (role === 'admin' && passkey !== ADMIN_PASSKEY) {
-      return socket.emit('auth-error', 'Incorrect Admin Passkey!');
-    }
-    if (role === 'member' && passkey !== MEMBER_PASSKEY) {
-      return socket.emit('auth-error', 'Incorrect Member Passkey!');
+    if (PASSKEYS[role] !== passkey) {
+      return socket.emit('auth-error', 'Invalid passkey for selected role.');
     }
 
     socket.join(room);
-    socket.room = room;
-    socket.user = user;
-    socket.role = role;
-    socket.deviceId = deviceId;
-
-    if (deviceId) {
-      userDeviceMap[normUser] = deviceId;
-    }
+    socket.userData = { room, user, role, deviceId };
 
     socket.emit('auth-success');
-    io.to(room).emit('chat-message', {
+    
+    socket.emit('chat-history', chatHistory);
+
+    socket.to(room).emit('chat-message', {
       type: 'system',
       payload: { text: `${user} joined as ${role}.` }
     });
   });
 
   socket.on('chat-message', (data) => {
-    const username = socket.user;
-    const deviceId = socket.deviceId || data.deviceId;
+    const { room, id, type, payload, deviceId } = data;
+    if (!socket.userData) return;
 
-    if (bannedUsers.has(username.toLowerCase()) || (deviceId && bannedDevices.has(deviceId))) {
-      return socket.emit('user-banned', 'You are banned from sending messages.');
+    if (bannedUsers.includes(socket.userData.user) || bannedDevices.includes(deviceId)) {
+      return socket.emit('user-banned', 'You have been banned.');
     }
 
-    if (socket.role === 'member' && data.payload && data.payload.text && containsAbuse(data.payload.text)) {
-      userWarnings[username] = (userWarnings[username] || 0) + 1;
-      const count = userWarnings[username];
-      const foundWord = ABUSIVE_WORDS.find(w => data.payload.text.toLowerCase().includes(w));
+    if (payload.text) {
+      const lowerText = payload.text.toLowerCase();
+      const detectedWord = BANNED_WORDS.find(w => lowerText.includes(w));
 
-      if (count >= 3) {
-        bannedUsers.add(username.toLowerCase());
-        if (deviceId) bannedDevices.add(deviceId);
+      if (detectedWord) {
+        deviceWarnings[deviceId] = (deviceWarnings[deviceId] || 0) + 1;
+        const currentWarns = deviceWarnings[deviceId];
 
-        socket.emit('user-banned', 'You have been banned for repeated use of abusive language!');
-        socket.leave(socket.room);
-        io.to(socket.room).emit('chat-message', {
-          type: 'system',
-          payload: { text: `🚨 ${username} was automatically banned for abusive language.` }
-        });
-      } else {
-        socket.emit('abuse-warning', { warnings: count, word: foundWord });
-      }
-      return;
-    }
-
-    data.role = socket.role;
-    io.to(data.room || socket.room).emit('chat-message', data);
-  });
-
-  socket.on('delete-message', ({ room, msgId }) => {
-    io.to(room || socket.room).emit('message-deleted', { msgId });
-  });
-
-  socket.on('admin-clear-all-messages', ({ room }) => {
-    io.to(room || socket.room).emit('all-messages-cleared');
-  });
-
-  socket.on('get-banned-users', () => {
-    socket.emit('update-banned-list', Array.from(bannedUsers));
-  });
-
-  socket.on('admin-ban-user', ({ room, username }) => {
-    if (socket.role !== 'admin') return;
-    const normUser = username.toLowerCase();
-    bannedUsers.add(normUser);
-
-    const devId = userDeviceMap[normUser];
-    if (devId) bannedDevices.add(devId);
-
-    const roomSockets = io.sockets.adapter.rooms.get(room || socket.room);
-    if (roomSockets) {
-      for (const socketId of roomSockets) {
-        const s = io.sockets.sockets.get(socketId);
-        if (s && s.user && s.user.toLowerCase() === normUser) {
-          s.emit('user-banned', 'You have been banned by the Admin.');
-          s.leave(room || socket.room);
+        if (currentWarns >= 3) {
+          if (!bannedDevices.includes(deviceId)) bannedDevices.push(deviceId);
+          if (!bannedUsers.includes(socket.userData.user)) bannedUsers.push(socket.userData.user);
+          io.to(room).emit('update-banned-list', bannedUsers);
+          return socket.emit('user-banned', `Device banned due to repeated policy violations (${detectedWord}).`);
+        } else {
+          return socket.emit('abuse-warning', { warnings: currentWarns, word: detectedWord });
         }
       }
     }
 
-    io.to(room || socket.room).emit('chat-message', {
-      type: 'system',
-      payload: { text: `🚨 ${username} was banned by Admin.` }
-    });
-    io.to(socket.id).emit('update-banned-list', Array.from(bannedUsers));
+    const msgObj = {
+      id: id || "msg_" + Date.now(),
+      type: type || "text",
+      payload: payload,
+      role: socket.userData.role,
+      timestamp: Date.now()
+    };
+
+    chatHistory.push(msgObj);
+    if (chatHistory.length > 500) chatHistory.shift();
+    saveMessages();
+
+    io.to(room).emit('chat-message', msgObj);
+  });
+
+  socket.on('delete-message', ({ room, msgId }) => {
+    chatHistory = chatHistory.filter(m => m.id !== msgId);
+    saveMessages();
+    io.to(room).emit('message-deleted', { msgId });
+  });
+
+  socket.on('admin-clear-all-messages', ({ room }) => {
+    if (socket.userData && socket.userData.role === 'admin') {
+      chatHistory = [];
+      saveMessages();
+      io.to(room).emit('all-messages-cleared');
+    }
+  });
+
+  socket.on('admin-ban-user', ({ room, username }) => {
+    if (socket.userData && socket.userData.role === 'admin') {
+      if (!bannedUsers.includes(username)) {
+        bannedUsers.push(username);
+        io.to(room).emit('update-banned-list', bannedUsers);
+      }
+    }
   });
 
   socket.on('admin-unban-user', ({ room, username }) => {
-    if (socket.role !== 'admin') return;
-    const normUser = username.toLowerCase();
-    bannedUsers.delete(normUser);
-
-    const devId = userDeviceMap[normUser];
-    if (devId) bannedDevices.delete(devId);
-
-    if (userWarnings[username]) delete userWarnings[username];
-
-    io.to(room || socket.room).emit('chat-message', {
-      type: 'system',
-      payload: { text: `✅ ${username} was unbanned by Admin.` }
-    });
-    io.to(socket.id).emit('update-banned-list', Array.from(bannedUsers));
+    if (socket.userData && socket.userData.role === 'admin') {
+      bannedUsers = bannedUsers.filter(u => u !== username);
+      io.to(room).emit('update-banned-list', bannedUsers);
+    }
   });
 
-  socket.on('voice-join', (data) => {
-    const room = data?.room || socket.room;
-    if (!room) return;
+  socket.on('get-banned-users', () => {
+    socket.emit('update-banned-list', bannedUsers);
+  });
 
-    if (!callUsers[room]) callUsers[room] = [];
-    if (!callUsers[room].includes(socket.user)) {
-      callUsers[room].push(socket.user);
-    }
+  socket.on('voice-join', ({ room, user }) => {
+    if (!activeVoiceUsers[room]) activeVoiceUsers[room] = {};
+    
+    const peerSockets = Object.keys(activeVoiceUsers[room]);
+    socket.emit('call-peers-list', peerSockets);
 
-    const roomSockets = Array.from(io.sockets.adapter.rooms.get(room) || []).filter(id => id !== socket.id);
-    socket.emit('call-peers-list', roomSockets);
-    socket.to(room).emit('user-joined-call', { socketId: socket.id });
-    io.to(room).emit('update-call-users', callUsers[room]);
+    activeVoiceUsers[room][socket.id] = user;
+    socket.to(room).emit('user-joined-call', { socketId: socket.id, user });
+    io.to(room).emit('update-call-users', Object.values(activeVoiceUsers[room]));
   });
 
   socket.on('voice-signal', ({ target, signal }) => {
     io.to(target).emit('voice-signal', { sender: socket.id, signal });
   });
 
-  socket.on('voice-leave', (data) => {
-    const room = data?.room || socket.room;
-    if (!room) return;
-
-    if (callUsers[room]) {
-      callUsers[room] = callUsers[room].filter(u => u !== socket.user);
-      io.to(room).emit('update-call-users', callUsers[room]);
+  socket.on('voice-leave', ({ room }) => {
+    if (activeVoiceUsers[room] && activeVoiceUsers[room][socket.id]) {
+      delete activeVoiceUsers[room][socket.id];
+      socket.to(room).emit('user-left-call', { socketId: socket.id });
+      io.to(room).emit('update-call-users', Object.values(activeVoiceUsers[room]));
     }
-    socket.to(room).emit('user-left-call', { socketId: socket.id });
   });
 
   socket.on('disconnect', () => {
-    const room = socket.room;
-    if (room && callUsers[room]) {
-      callUsers[room] = callUsers[room].filter(u => u !== socket.user);
-      io.to(room).emit('update-call-users', callUsers[room]);
-      socket.to(room).emit('user-left-call', { socketId: socket.id });
+    if (socket.userData) {
+      const { room } = socket.userData;
+      if (activeVoiceUsers[room] && activeVoiceUsers[room][socket.id]) {
+        delete activeVoiceUsers[room][socket.id];
+        socket.to(room).emit('user-left-call', { socketId: socket.id });
+        io.to(room).emit('update-call-users', Object.values(activeVoiceUsers[room]));
+      }
     }
   });
 });
 
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

@@ -5,18 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Drexqe Chat</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; }
     html, body { width: 100%; height: 100%; background: #111b21; color: #e9edef; overflow: hidden; }
     body { display: flex; flex-direction: column; height: 100dvh; }
-    header { background: #202c33; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222d34; flex-shrink: 0; z-index: 10; }
+    
+    header { background: #202c33; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222d34; flex-shrink: 0; z-index: 10; }
+    .group-brand { display: flex; align-items: center; gap: 10px; }
+    .group-dp { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00a884; object-fit: cover; }
+    .group-meta h3 { font-size: 16px; color: #e9edef; font-weight: 600; }
+    .group-meta p { font-size: 11px; color: #8696a0; }
+
     #chatBox { flex: 1 1 auto; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #0b141a; min-height: 0; }
     
-    .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; cursor: pointer; }
-    .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
-    .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
-    .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; cursor: default; }
+    .msg-row { display: flex; gap: 8px; align-items: flex-end; max-width: 85%; }
+    .msg-row.me { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-row.other { align-self: flex-start; }
+    .msg-row.system-row { align-self: center; max-width: 100%; }
+
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #2a3942; }
+    .user-avatar.admin-avatar { border: 2px solid #f39c12; box-shadow: 0 0 6px rgba(243, 156, 18, 0.5); }
+
+    .msg { padding: 8px 12px; border-radius: 12px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; cursor: pointer; width: 100%; }
+    .msg.me { background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
+    .msg.other { background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
+    .msg.system { background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; cursor: default; text-align: center; padding: 4px 10px; }
     
-    .msg.admin-msg { border: 1px solid #f39c12; box-shadow: 0 0 8px rgba(243, 156, 18, 0.3); }
+    .msg.admin-msg { border: 1px solid #f39c12; box-shadow: 0 0 8px rgba(243, 156, 18, 0.2); }
     .admin-badge { background: linear-gradient(135deg, #f1c40f, #e67e22); color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 5px; display: inline-block; vertical-align: middle; }
 
     .reply-quote { background: rgba(0, 0, 0, 0.25); border-left: 4px solid #00a884; border-radius: 4px; padding: 4px 8px; margin-bottom: 6px; font-size: 12px; }
@@ -33,7 +47,7 @@
     .file-info { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .download-link { background: #00a884; color: #111b21; padding: 4px 8px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 12px; }
 
-    .msg img { max-width: 100%; max-height: 220px; border-radius: 6px; margin-top: 5px; cursor: pointer; object-fit: cover; }
+    .msg img.chat-image { max-width: 100%; max-height: 220px; border-radius: 6px; margin-top: 5px; cursor: pointer; object-fit: cover; }
     .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
     .delete-btn { background: transparent; border: none; color: #8696a0; font-size: 12px; cursor: pointer; padding: 0 4px; }
     .delete-btn:hover { color: #ea0038; }
@@ -62,7 +76,7 @@
     .call-header h2 { font-size: 22px; margin-top: 5px; }
     .grid-container { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; align-content: center; padding: 20px 0; overflow-y: auto; }
     .user-card { background: #111b21; border-radius: 16px; border: 2px solid #202c33; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .avatar { width: 60px; height: 60px; background: #6b7c85; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+    .call-avatar { width: 65px; height: 65px; border-radius: 50%; object-fit: cover; border: 2px solid #00a884; margin-bottom: 8px; }
     .user-name { font-size: 14px; font-weight: bold; }
     .call-controls { display: flex; justify-content: center; gap: 20px; padding-bottom: 30px; }
     .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; color: white; }
@@ -75,10 +89,16 @@
 <body>
 
   <header>
-    <h3>Drexqe Chat</h3>
+    <div class="group-brand">
+      <img src="https://api.dicebear.com/7.x/identicon/svg?seed=DrexqeGroup" class="group-dp" alt="Group Icon">
+      <div class="group-meta">
+        <h3>Drexqe Group</h3>
+        <p>🔒 End-to-End Encrypted Secure Network</p>
+      </div>
+    </div>
     <div>
-      <button id="voiceCallBtn" onclick="joinVoiceCall()">📞 Voice Call</button>
-      <button id="adminBtn" style="display:none;" onclick="openAdminModal()">Admin Panel</button>
+      <button id="voiceCallBtn" onclick="joinVoiceCall()">📞 Call</button>
+      <button id="adminBtn" style="display:none;" onclick="openAdminModal()">Admin</button>
     </div>
   </header>
 
@@ -185,9 +205,18 @@
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' }
       ]
     };
+
+    function getUserAvatar(username, role) {
+      if (role === 'admin') {
+        return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+      }
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
+    }
 
     function getDeviceId() {
       let devId = localStorage.getItem("chat_device_id");
@@ -265,7 +294,14 @@
     });
 
     socket.on("abuse-warning", ({ warnings, word }) => {
-      alert(`⚠️ Warning ${warnings}/3: Offensive message containing "${word}" was blocked! Reaching 3 warnings will permanently ban your device.`);
+      alert(`⚠️ Warning ${warnings}/3: Message containing "${word}" was blocked. 3 warnings = permanent device ban.`);
+    });
+
+    socket.on("chat-history", (history) => {
+      const box = document.getElementById("chatBox");
+      box.innerHTML = "";
+      history.forEach(msg => renderSingleMessage(msg));
+      box.scrollTop = box.scrollHeight;
     });
 
     function setReplyTarget(sender, text) {
@@ -462,21 +498,28 @@
       document.getElementById("imageModal").style.display = "none";
     }
 
-    socket.on("chat-message", (data) => {
+    function renderSingleMessage(data) {
       const box = document.getElementById("chatBox");
       const msgId = data.id || "msg_" + Date.now();
       if (document.getElementById(msgId)) return;
 
-      const div = document.createElement("div");
-      div.id = msgId;
+      const row = document.createElement("div");
+      row.id = msgId;
 
       if (data.type === "system") {
-        div.className = "msg system";
-        div.textContent = data.payload.text;
+        row.className = "msg-row system-row";
+        row.innerHTML = `<div class="msg system">${data.payload.text}</div>`;
       } else {
         const isMe = data.payload.sender === currentUser;
         const isAdmin = data.role === "admin";
         
+        row.className = `msg-row ${isMe ? "me" : "other"}`;
+
+        const avatarImg = document.createElement("img");
+        avatarImg.className = `user-avatar ${isAdmin ? "admin-avatar" : ""}`;
+        avatarImg.src = getUserAvatar(data.payload.sender, data.role);
+
+        const div = document.createElement("div");
         let msgClasses = ["msg", isMe ? "me" : "other"];
         if (isAdmin) msgClasses.push("admin-msg");
         div.className = msgClasses.join(" ");
@@ -500,7 +543,7 @@
           const isImage = data.payload.fileType && data.payload.fileType.startsWith("image/");
           if (isImage) {
             summaryText = "📷 Photo";
-            div.innerHTML = `${headerHtml}${replySnippet}<img src="${data.payload.fileData}" onclick="event.stopPropagation(); openImageModal(this.src)">`;
+            div.innerHTML = `${headerHtml}${replySnippet}<img class="chat-image" src="${data.payload.fileData}" onclick="event.stopPropagation(); openImageModal(this.src)">`;
           } else {
             summaryText = `📄 ${data.payload.fileName}`;
             div.innerHTML = `${headerHtml}${replySnippet}<div class="file-card"><div class="file-info">📄 ${data.payload.fileName}</div><a class="download-link" href="${data.payload.fileData}" download="${data.payload.fileName}" onclick="event.stopPropagation()">Download</a></div>`;
@@ -520,10 +563,17 @@
           }
           lastTap = currentTime;
         });
+
+        row.appendChild(avatarImg);
+        row.appendChild(div);
       }
 
-      box.appendChild(div);
+      box.appendChild(row);
       box.scrollTop = box.scrollHeight;
+    }
+
+    socket.on("chat-message", (data) => {
+      renderSingleMessage(data);
     });
 
     function deleteMessage(msgId) {
@@ -572,7 +622,6 @@
         container.appendChild(item);
       });
     });
-
     async function joinVoiceCall() {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -611,6 +660,7 @@
           audio = document.createElement("audio");
           audio.id = "audio_" + targetSocketId;
           audio.autoplay = true;
+          audio.playsInline = true;
           document.getElementById("audioContainer").appendChild(audio);
         }
         audio.srcObject = event.streams[0];
@@ -700,7 +750,8 @@
       activeCallUsersList.forEach(user => {
         const card = document.createElement("div");
         card.className = "user-card";
-        card.innerHTML = `<div class="avatar">${user.charAt(0).toUpperCase()}</div><div class="user-name">${user}</div>`;
+        const avatarUrl = getUserAvatar(user, "member");
+        card.innerHTML = `<img src="${avatarUrl}" class="call-avatar" alt="${user}"><div class="user-name">${user}</div>`;
         grid.appendChild(card);
       });
     }
