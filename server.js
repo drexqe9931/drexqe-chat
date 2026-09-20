@@ -18,8 +18,7 @@ const bannedUsers = new Set();
 const userWarnings = {};
 const callUsers = {};
 
-// Abusive word filter
-const ABUSIVE_WORDS = ['mc', 'bc', 'madarchod', 'bhenchod', 'gand', 'chutiya', 'bhosdike', ' bakchodi', 'fuck', 'fuck you', 'bitch'];
+const ABUSIVE_WORDS = ['mc', 'bc', 'madarchod', 'bhenchod', 'gand', 'chutiya', 'bhosdike', 'fuck', 'bitch'];
 
 function containsAbuse(text) {
   if (!text) return false;
@@ -56,8 +55,8 @@ io.on('connection', (socket) => {
   socket.on('chat-message', (data) => {
     const username = socket.user;
 
-    // Check abusive language
-    if (data.payload && data.payload.text && containsAbuse(data.payload.text)) {
+    // Abuse check is only active for MEMBERS, admins are exempt
+    if (socket.role === 'member' && data.payload && data.payload.text && containsAbuse(data.payload.text)) {
       userWarnings[username] = (userWarnings[username] || 0) + 1;
       const count = userWarnings[username];
       const foundWord = ABUSIVE_WORDS.find(w => data.payload.text.toLowerCase().includes(w));
@@ -71,13 +70,11 @@ io.on('connection', (socket) => {
           payload: { text: `🚨 ${username} was automatically banned for abusive language.` }
         });
       } else {
-        // Warn the sender and DO NOT broadcast the abusive message to others
         socket.emit('abuse-warning', { warnings: count, word: foundWord });
       }
-      return; // Stop message from reaching the room!
+      return;
     }
 
-    // Attach role info to the payload so everyone sees who is admin
     data.role = socket.role;
     io.to(data.room || socket.room).emit('chat-message', data);
   });
