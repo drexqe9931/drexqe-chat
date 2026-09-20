@@ -11,44 +11,42 @@
     
     #app-container { display: flex; flex-direction: column; height: 100%; height: 100dvh; width: 100vw; position: relative; }
 
-    /* Header & Group Profile */
+    /* Header */
     .header { background: #202c33; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; min-height: 60px; border-bottom: 1px solid #2a3942; z-index: 10; flex-shrink: 0; }
-    .header-left { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-    .group-dp { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00a884; object-fit: cover; }
-    .header-info h2 { font-size: 16px; color: #e9edef; font-weight: 600; }
+    .header-left { display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+    .header-info h2 { font-size: 16px; color: #e9edef; font-weight: 600; display: flex; align-items: center; gap: 6px; }
     .header-info p { font-size: 11px; color: #8696a0; }
     .header-actions { display: flex; gap: 8px; }
     .btn { background: #00a884; color: #111b21; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .btn-danger { background: #ea0038; color: #fff; }
 
     /* Chat Messages Box */
-    .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0b141a; }
-    .msg-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
-    .msg-row.me { flex-direction: row-reverse; }
+    .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: #0b141a; }
+    .msg-row { display: flex; margin-bottom: 2px; }
+    .msg-row.me { justify-content: flex-end; }
+    .msg-row.other { justify-content: flex-start; }
     .msg-row.system-row { justify-content: center; margin: 8px 0; }
-    
-    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: #2a3942; object-fit: cover; flex-shrink: 0; }
-    .admin-avatar { border: 2px solid #f39c12; }
 
-    .msg { max-width: 78%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; word-wrap: break-word; user-select: none; }
+    .msg { max-width: 82%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; word-wrap: break-word; user-select: none; }
     .msg.other { background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
     .msg.me { background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
-    .msg.admin-msg { border-left: 3px solid #f39c12; }
-    .msg.system { background: #182229; color: #8696a0; font-size: 12px; border-radius: 6px; padding: 4px 10px; text-align: center; }
+    
+    /* Crown Admin Styling */
+    .msg.admin-msg { border: 1px solid #f39c12; box-shadow: 0 0 10px rgba(243, 156, 18, 0.25); }
+    .admin-crown-badge { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
+    .msg.system { background: #182229; color: #8696a0; font-size: 12px; border-radius: 6px; padding: 4px 10px; text-align: center; }
     .msg-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; color: #8696a0; }
-    .admin-badge { background: #f39c12; color: #000; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
     .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.7; color: #8696a0; }
 
-    /* Reply Snippet & Image / File Media Cards */
+    /* Media Cards */
     .reply-quote { background: rgba(0,0,0,0.25); border-left: 3px solid #00a884; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
     .reply-author { color: #00a884; font-weight: bold; font-size: 11px; }
     .reply-text { color: #d1d7db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     
     .media-container { position: relative; display: inline-block; margin-top: 4px; }
     .chat-image { max-width: 100%; max-height: 250px; border-radius: 8px; cursor: pointer; display: block; object-fit: cover; }
-    .img-download-btn { position: absolute; bottom: 8px; right: 8px; background: rgba(11, 20, 26, 0.75); color: #fff; padding: 6px 10px; border-radius: 20px; font-size: 11px; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,0.2); }
-
+    .img-download-btn { position: absolute; bottom: 8px; right: 8px; background: rgba(11, 20, 26, 0.8); color: #fff; padding: 6px 10px; border-radius: 20px; font-size: 11px; text-decoration: none; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); }
     .file-card { background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .download-link { color: #53bdeb; text-decoration: none; font-size: 12px; font-weight: bold; }
 
@@ -59,31 +57,38 @@
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; display: flex; align-items: center; justify-content: center; }
 
-    /* Image Fullscreen Preview Modal */
-    .image-preview-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; }
+    /* Fullscreen Image Preview */
+    .image-preview-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: space-between; z-index: 3000; }
     .preview-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); }
     .preview-body { flex: 1; display: flex; justify-content: center; align-items: center; padding: 12px; }
     .preview-body img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; }
 
-    /* WhatsApp Style Voice Call Screen Overlay */
-    .wa-call-screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: 100dvh; background: #0b141a; display: flex; flex-direction: column; justify-content: space-between; z-index: 1500; }
-    .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; }
-    .wa-call-header .e2e-tag { display: flex; align-items: center; gap: 6px; color: #00a884; font-weight: 500; }
-    
-    .wa-call-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
-    .wa-avatar-ring { width: 140px; height: 140px; border-radius: 50%; background: #1f2c34; display: flex; align-items: center; justify-content: center; border: 3px solid #00a884; margin-bottom: 20px; box-shadow: 0 0 25px rgba(0,168,132,0.2); }
-    .wa-avatar-img { width: 130px; height: 130px; border-radius: 50%; object-fit: cover; }
-    .wa-call-title { font-size: 22px; font-weight: 600; color: #e9edef; margin-bottom: 6px; }
-    .wa-call-timer { font-size: 14px; color: #8696a0; }
+    /* Authentic WhatsApp Group Call Overlay */
+    .wa-call-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; }
+    .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; background: rgba(0,0,0,0.2); }
+    .wa-call-header .e2e-tag { display: flex; align-items: center; gap: 6px; color: #00a884; font-weight: 600; }
 
-    /* WhatsApp Call Controls Dock Bar */
-    .wa-call-dock { background: #111b21; padding: 20px 24px calc(24px + env(safe-area-inset-bottom)); border-top-left-radius: 24px; border-top-right-radius: 24px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); }
-    .wa-dock-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: #202c33; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
-    .wa-dock-btn.active { background: #3b4a54; color: #ea0038; }
-    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; }
+    /* Grid layout matching WhatsApp Call Tiles */
+    .wa-call-grid { flex: 1; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; align-content: center; overflow-y: auto; }
+    .wa-call-tile { background: #1f2c34; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 2px solid #2a3942; min-height: 160px; }
+    .wa-call-tile.speaking { border-color: #00a884; box-shadow: 0 0 15px rgba(0, 168, 132, 0.3); }
+    .wa-tile-name { font-size: 14px; font-weight: 600; color: #e9edef; margin-top: 10px; }
+    
+    /* Animated Waveform Icon */
+    .waveform { display: flex; align-items: center; gap: 3px; height: 16px; margin-top: 6px; }
+    .waveform span { width: 3px; height: 100%; background: #00a884; border-radius: 3px; animation: bounce 0.8s infinite ease-in-out alternate; }
+    .waveform span:nth-child(2) { animation-delay: 0.2s; }
+    .waveform span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0% { height: 4px; } 100% { height: 16px; } }
+
+    /* WhatsApp Bottom Dock */
+    .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a3942; }
+    .wa-dock-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: #2a3942; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .wa-dock-btn.active { background: #ea0038; color: #fff; }
+    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; font-size: 24px; }
 
     /* Standard Modals */
-    .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2500; }
     .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
     .modal-card h3 { color: #e9edef; font-size: 18px; text-align: center; }
     .modal-card input, .modal-card select { background: #2a3942; border: 1px solid #3b4a54; padding: 10px; border-radius: 8px; color: #e9edef; outline: none; font-size: 14px; width: 100%; }
@@ -97,7 +102,6 @@
     <!-- Header -->
     <div class="header">
       <div class="header-left" onclick="openGroupDetails()">
-        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=DrexqeGroupNetwork" class="group-dp" alt="Group DP">
         <div class="header-info">
           <h2 id="roomTitle">Drexqe Group</h2>
           <p id="userInfoSub">🔒 Tap here for group info</p>
@@ -109,10 +113,10 @@
       </div>
     </div>
 
-    <!-- Chat Messages Box -->
+    <!-- Chat Messages -->
     <div class="chat-box" id="chatBox"></div>
 
-    <!-- Bottom Input Controls -->
+    <!-- Bottom Input Area -->
     <div class="bottom-controls">
       <div class="reply-bar" id="replyBar" style="display:none;">
         <div>
@@ -134,12 +138,12 @@
     </div>
   </div>
 
-  <!-- Fullscreen Image Preview Modal -->
+  <!-- Fullscreen Image Preview -->
   <div class="image-preview-modal" id="imagePreviewModal" style="display:none;">
     <div class="preview-header">
-      <span style="font-size:14px; color:#e9edef; font-weight:600;" id="previewTitle">Image Preview</span>
+      <span style="font-size:14px; color:#e9edef; font-weight:600;" id="previewTitle">Photo Preview</span>
       <div style="display:flex; gap:12px;">
-        <a id="previewDownloadBtn" download="image.png" class="btn" style="text-decoration:none; padding:6px 12px;">📥 Download</a>
+        <a id="previewDownloadBtn" download="photo.png" class="btn" style="text-decoration:none; padding:6px 12px;">📥 Download</a>
         <button class="icon-btn" onclick="closeImagePreview()" style="color:#fff;">✕</button>
       </div>
     </div>
@@ -165,12 +169,11 @@
     </div>
   </div>
 
-  <!-- Group Details Modal -->
+  <!-- Group Modal -->
   <div class="modal-overlay" id="groupModal" style="display:none;" onclick="closeGroupDetails()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div style="text-align: center;">
-        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=DrexqeGroupNetwork" style="width:80px; height:80px; border-radius:50%; border:3px solid #00a884; margin-bottom:10px;">
-        <h3>Drexqe Group Chat</h3>
+        <h3 style="font-size:20px;">Drexqe Group Chat</h3>
         <p style="font-size:12px; color:#8696a0; margin-top:4px;">Official End-to-End Encrypted Community Network</p>
       </div>
       <hr style="border:0; border-top:1px solid #3b4a54;">
@@ -198,22 +201,31 @@
     </div>
   </div>
 
-  <!-- WhatsApp Style Voice Calling Overlay -->
+  <!-- WhatsApp Voice Call Overlay -->
   <div class="wa-call-screen" id="callScreen" style="display:none;">
     <div class="wa-call-header">
       <div class="e2e-tag">🔒 End-to-End Encrypted</div>
-      <div>👥 Group Voice Call</div>
+      <div id="callTimer">00:00</div>
     </div>
 
-    <div class="wa-call-main">
-      <div class="wa-avatar-ring">
-        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=DrexqeGroupNetwork" class="wa-avatar-img" id="waCallAvatar">
+    <!-- Group Voice Tile Grid -->
+    <div class="wa-call-grid" id="callGrid">
+      <div class="wa-call-tile speaking">
+        <div style="font-size: 32px;">👤</div>
+        <div class="wa-tile-name" id="localCallUser">You</div>
+        <div class="waveform">
+          <span></span><span></span><span></span>
+        </div>
       </div>
-      <div class="wa-call-title" id="waCallTitle">Drexqe Group</div>
-      <div class="wa-call-timer" id="callStatusText">Connecting...</div>
+      <div class="wa-call-tile">
+        <div style="font-size: 32px;">👤</div>
+        <div class="wa-tile-name">Room Peer</div>
+        <div class="waveform">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
     </div>
 
-    <!-- WhatsApp Control Dock -->
     <div class="wa-call-dock">
       <button class="wa-dock-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Speaker">🔊</button>
       <button class="wa-dock-btn" id="muteBtn" onclick="toggleMute()" title="Mute">🎤</button>
@@ -242,20 +254,12 @@
       localStorage.setItem('chat_device_id', deviceId);
     }
 
-    // Password Toggle
     const passInput = document.getElementById('passkeyInput');
     const eyeBtn = document.getElementById('toggleEyeBtn');
     eyeBtn.addEventListener('click', () => {
       const isPass = passInput.getAttribute('type') === 'password';
       passInput.setAttribute('type', isPass ? 'text' : 'password');
     });
-
-    function getUserAvatar(username, role) {
-      if (role === 'admin') {
-        return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-      }
-      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
-    }
 
     function joinChat() {
       const user = document.getElementById('usernameInput').value.trim();
@@ -281,7 +285,8 @@
 
     socket.on('auth-success', () => {
       document.getElementById('loginModal').style.display = 'none';
-      document.getElementById('userInfoSub').innerText = `${currentUser} (${currentRole}) • Tap for info`;
+      const roleLabel = currentRole === 'admin' ? '👑 ADMIN' : 'Member';
+      document.getElementById('userInfoSub').innerText = `${currentUser} (${roleLabel}) • Tap for info`;
       if (currentRole === 'admin') {
         document.getElementById('adminBtn').style.display = 'block';
       }
@@ -319,12 +324,10 @@
         chatBox.appendChild(row);
       } else {
         const isMe = msg.payload.user === currentUser;
+        const isAdmin = msg.role === 'admin';
         const row = document.createElement('div');
-        row.className = `msg-row ${isMe ? 'me' : ''}`;
+        row.className = `msg-row ${isMe ? 'me' : 'other'}`;
         row.id = msg.id;
-
-        const avatarUrl = getUserAvatar(msg.payload.user, msg.role);
-        const avatarImg = `<img src="${avatarUrl}" class="user-avatar ${msg.role === 'admin' ? 'admin-avatar' : ''}">`;
 
         let bodyHtml = '';
         if (msg.payload.reply) {
@@ -347,13 +350,12 @@
 
         const canDelete = isMe || currentRole === 'admin';
         const deleteBtn = canDelete ? `<button class="action-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>` : '';
-        const adminTag = msg.role === 'admin' ? `<span class="admin-badge">ADMIN</span>` : '';
+        const adminCrownBadge = isAdmin ? `<span class="admin-crown-badge">👑 ADMIN</span>` : '';
 
         row.innerHTML = `
-          ${avatarImg}
-          <div class="msg ${isMe ? 'me' : 'other'} ${msg.role === 'admin' ? 'admin-msg' : ''}" id="bubble_${msg.id}">
+          <div class="msg ${isMe ? 'me' : 'other'} ${isAdmin ? 'admin-msg' : ''}" id="bubble_${msg.id}">
             <div class="msg-header">
-              <span>${msg.payload.user}${adminTag}</span>
+              <span>${msg.payload.user} ${adminCrownBadge}</span>
               <div>
                 <button class="action-btn" onclick="setReply('${msg.payload.user}', '${msg.payload.text || 'Media'}')">↩️</button>
                 ${deleteBtn}
@@ -365,7 +367,6 @@
 
         chatBox.appendChild(row);
 
-        // Double Tap to Reply
         const msgBubble = document.getElementById(`bubble_${msg.id}`);
         let lastTap = 0;
         msgBubble.addEventListener('touchend', (e) => {
@@ -385,7 +386,6 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Image Preview Modal Functions
     function openImagePreview(src, filename) {
       document.getElementById('fullscreenImg').src = src;
       const dlBtn = document.getElementById('previewDownloadBtn');
@@ -481,10 +481,11 @@
       }
     }
 
-    // WhatsApp Voice Call Interactivity
+    // Voice Calling Setup
     async function startVoiceCall() {
+      document.getElementById('localCallUser').innerText = currentUser || 'You';
       document.getElementById('callScreen').style.display = 'flex';
-      document.getElementById('callStatusText').innerText = 'Ringing...';
+      
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         peerConnection = new RTCPeerConnection({
@@ -516,7 +517,7 @@
         callSeconds++;
         const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
         const secs = String(callSeconds % 60).padStart(2, '0');
-        document.getElementById('callStatusText').innerText = `${mins}:${secs}`;
+        document.getElementById('callTimer').innerText = `${mins}:${secs}`;
       }, 1000);
     }
 
