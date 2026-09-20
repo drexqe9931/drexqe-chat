@@ -6,130 +6,208 @@
   <title>Drexqe Group Chat</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background-color: #111b21; color: #e9edef; display: flex; align-items: center; justify-content: center; height: 100vh; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: #0b141a; color: #e9edef; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
     
-    /* Login Modal */
-    #login-modal { background: #1f2c34; padding: 25px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
-    #login-modal h2 { margin-bottom: 20px; font-size: 20px; }
-    .input-group { margin-bottom: 15px; position: relative; }
-    .input-group input, .input-group select { width: 100%; padding: 12px; background: #2a3942; border: 1px solid #3b4a54; color: #fff; border-radius: 8px; outline: none; font-size: 15px; }
-    .eye-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; user-select: none; font-size: 18px; }
-    button.btn-join { width: 100%; padding: 12px; background: #00a884; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
-    button.btn-join:hover { background: #008f70; }
+    /* Header */
+    .header { background: #202c33; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; border-bottom: 1px solid #2a3942; }
+    .header-info h2 { font-size: 16px; color: #e9edef; font-weight: 600; }
+    .header-info p { font-size: 12px; color: #8696a0; }
+    .header-actions { display: flex; gap: 8px; }
+    .btn { background: #00a884; color: #111b21; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .btn-danger { background: #ea0038; color: #fff; }
 
     /* Chat Area */
-    #chat-container { display: none; width: 100vw; height: 100vh; flex-direction: column; background: #0b141a; }
-    #chat-header { background: #202c33; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; }
-    #chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .msg { background: #202c33; padding: 8px 12px; border-radius: 8px; max-width: 75%; width: fit-content; word-break: break-word; }
-    .msg.system { background: transparent; color: #8696a0; font-size: 12px; align-self: center; text-align: center; }
-    #chat-input-area { background: #202c33; padding: 10px; display: flex; gap: 10px; }
-    #chat-input-area input { flex: 1; padding: 10px; background: #2a3942; border: none; color: #fff; border-radius: 8px; outline: none; }
-    #chat-input-area button { padding: 10px 15px; background: #00a884; border: none; color: #fff; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0b141a; }
+    .msg-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
+    .msg-row.me { flex-direction: row-reverse; }
+    .msg-row.system-row { justify-content: center; margin: 8px 0; }
+    
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #2a3942; object-fit: cover; }
+    .admin-avatar { border: 2px solid #f39c12; }
+
+    .msg { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; word-wrap: break-word; }
+    .msg.other { background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
+    .msg.me { background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
+    .msg.admin-msg { border-left: 3px solid #f39c12; }
+    .msg.system { background: #182229; color: #8696a0; font-size: 12px; border-radius: 6px; padding: 4px 10px; text-align: center; }
+
+    .msg-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; color: #8696a0; }
+    .admin-badge { background: #f39c12; color: #000; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
+    .delete-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.6; }
+    .delete-btn:hover { opacity: 1; }
+
+    /* Reply Snippet & Images */
+    .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid #00a884; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
+    .reply-author { color: #00a884; font-weight: bold; font-size: 11px; }
+    .reply-text { color: #d1d7db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    
+    .chat-image { max-width: 100%; max-height: 250px; border-radius: 8px; margin-top: 4px; cursor: pointer; }
+    .file-card { background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .download-link { color: #53bdeb; text-decoration: none; font-size: 12px; font-weight: bold; }
+
+    /* Input Bar */
+    .reply-bar { background: #182229; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a3942; font-size: 12px; }
+    .input-bar { background: #202c33; padding: 8px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #2a3942; }
+    .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
+    .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; }
+
+    /* Modals */
+    .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-card h3 { color: #e9edef; font-size: 18px; text-align: center; }
+    .modal-card input, .modal-card select { background: #2a3942; border: 1px solid #3b4a54; padding: 10px; border-radius: 8px; color: #e9edef; outline: none; font-size: 14px; width: 100%; }
+    .pass-field-wrap { position: relative; width: 100%; display: flex; align-items: center; }
+    .pass-field-wrap span { position: absolute; right: 12px; cursor: pointer; font-size: 18px; user-select: none; }
+
+    /* Call Screen */
+    .call-screen { position: fixed; top:0; left:0; right:0; bottom:0; background: #111b21; display: flex; flex-direction: column; z-index: 900; }
+    .call-grid { flex: 1; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; align-content: center; }
+    .user-card { background: #202c33; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .call-controls { background: #202c33; padding: 16px; display: flex; justify-content: center; gap: 20px; }
+    .call-btn { width: 50px; height: 50px; border-radius: 50%; border: none; background: #2a3942; color: #fff; font-size: 20px; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <!-- Login Modal -->
-  <div id="login-modal">
-    <h2>Join Chat</h2>
-    <div class="input-group">
-      <input type="text" id="username" placeholder="Username" autocomplete="off" />
+  <!-- Header -->
+  <div class="header">
+    <div class="header-info">
+      <h2 id="roomTitle">Drexqe Group</h2>
+      <p id="userInfoSub">🔒 End-to-End Encrypted Secure Network</p>
     </div>
-    <div class="input-group">
-      <select id="role">
+    <div class="header-actions">
+      <button class="btn" onclick="joinVoiceCall()">📞 Call</button>
+      <button class="btn btn-danger" id="adminBtn" style="display:none;" onclick="openAdminModal()">⚙️ Admin</button>
+    </div>
+  </div>
+
+  <!-- Chat Messages Box -->
+  <div class="chat-box" id="chatBox"></div>
+
+  <!-- Reply Target Bar -->
+  <div class="reply-bar" id="replyBar" style="display:none;">
+    <div>
+      <span style="color:#00a884; font-weight:bold;">Replying to </span>
+      <span id="replyUserTarget" style="font-weight:bold; color:#e9edef;"></span>
+      <div id="replyTextTarget" style="color:#8696a0; font-size:11px;"></div>
+    </div>
+    <button class="icon-btn" onclick="clearReplyTarget()">✕</button>
+  </div>
+
+  <!-- Input Bar -->
+  <div class="input-bar">
+    <label class="icon-btn" style="cursor:pointer;">
+      📎
+      <input type="file" id="fileInput" style="display:none;" onchange="sendMediaFile(this)">
+    </label>
+    <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button class="btn" onclick="sendMessage()">Send</button>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal-card">
+      <h3>Join Chat</h3>
+      <input type="text" id="usernameInput" placeholder="Enter Username" autocomplete="off">
+      <select id="roleSelect">
         <option value="member">Member</option>
         <option value="admin">Admin</option>
       </select>
+      <div class="pass-field-wrap">
+        <input type="password" id="passkeyInput" placeholder="Enter Passkey">
+        <span id="toggleEyeBtn">👁️</span>
+      </div>
+      <button class="btn" onclick="joinChat()">Join Room</button>
     </div>
-    <div class="input-group">
-      <input type="password" id="passkey" placeholder="Passkey" />
-      <span class="eye-icon" id="togglePasskey">👁️</span>
-    </div>
-    <button class="btn-join" id="joinBtn">Join Room</button>
   </div>
 
-  <!-- Chat Container -->
-  <div id="chat-container">
-    <div id="chat-header">
-      <div>
-        <h3 id="room-title">Drexqe Group</h3>
-        <small id="user-info" style="color: #8696a0;"></small>
-      </div>
+  <!-- Admin Modal -->
+  <div class="modal-overlay" id="adminModal" style="display:none;">
+    <div class="modal-card">
+      <h3>Admin Control Panel</h3>
+      <button class="btn btn-danger" onclick="clearAllMessages()">🗑️ Clear All Messages</button>
+      <hr style="border:0; border-top:1px solid #3b4a54; margin:4px 0;">
+      <h4 style="color:#e9edef; font-size:14px;">Ban Device</h4>
+      <input type="text" id="banUserInput" placeholder="Enter Username to Ban">
+      <button class="btn btn-danger" onclick="banUser()">Ban User</button>
+      <button class="btn" onclick="closeAdminModal()">Close</button>
     </div>
-    <div id="chat-messages"></div>
-    <div id="chat-input-area">
-      <input type="text" id="msgInput" placeholder="Type a message..." />
-      <button id="sendBtn">Send</button>
+  </div>
+
+  <!-- Voice Call Overlay -->
+  <div class="call-screen" id="callScreen" style="display:none;">
+    <div class="call-grid" id="callUsersGrid"></div>
+    <div class="call-controls">
+      <button class="call-btn btn-danger" onclick="leaveVoiceCall()">📞 Hang Up</button>
     </div>
   </div>
 
   <script>
     const socket = io();
 
-    // Eye icon toggle logic
-    const passkeyInput = document.getElementById('passkey');
-    const togglePasskey = document.getElementById('togglePasskey');
+    let currentUser = '';
+    let currentRole = 'member';
+    let replyTarget = null;
 
-    togglePasskey.addEventListener('click', () => {
-      const type = passkeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
-      passkeyInput.setAttribute('type', type);
-    });
-
-    // Device fingerprint generator
+    // Device Fingerprint
     let deviceId = localStorage.getItem('chat_device_id');
     if (!deviceId) {
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
       localStorage.setItem('chat_device_id', deviceId);
     }
 
-    let currentRoom = 'main-room';
-    let currentUser = '';
-    let currentRole = 'member';
+    // Toggle Password Eye Visibility
+    const passInput = document.getElementById('passkeyInput');
+    const eyeBtn = document.getElementById('toggleEyeBtn');
+    eyeBtn.addEventListener('click', () => {
+      const isPass = passInput.getAttribute('type') === 'password';
+      passInput.setAttribute('type', isPass ? 'text' : 'password');
+    });
 
-    // Join Room logic
-    document.getElementById('joinBtn').addEventListener('click', () => {
-      const username = document.getElementById('username').value.trim();
-      const role = document.getElementById('role').value;
-      const passkey = document.getElementById('passkey').value.trim();
+    function getUserAvatar(username, role) {
+      if (role === 'admin') {
+        return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+      }
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
+    }
 
-      if (!username || !passkey) {
-        alert('Please enter both username and passkey.');
+    function joinChat() {
+      const user = document.getElementById('usernameInput').value.trim();
+      const role = document.getElementById('roleSelect').value;
+      const passkey = document.getElementById('passkeyInput').value.trim();
+
+      if (!user || !passkey) {
+        alert('Please fill in all fields.');
         return;
       }
 
-      currentUser = username;
+      currentUser = user;
       currentRole = role;
 
       socket.emit('join-room', {
-        room: currentRoom,
-        user: username,
+        room: 'main-room',
+        user: user,
         role: role,
         passkey: passkey,
         deviceId: deviceId
       });
-    });
+    }
 
-    // Socket Response Handlers
     socket.on('auth-success', () => {
-      document.getElementById('login-modal').style.display = 'none';
-      document.getElementById('chat-container').style.display = 'flex';
-      document.getElementById('user-info').innerText = `${currentUser} (${currentRole})`;
+      document.getElementById('loginModal').style.display = 'none';
+      document.getElementById('userInfoSub').innerText = `${currentUser} (${currentRole})`;
+      if (currentRole === 'admin') {
+        document.getElementById('adminBtn').style.display = 'block';
+      }
     });
 
-    socket.on('auth-error', (msg) => {
-      alert(msg);
-    });
-
-    socket.on('user-banned', (msg) => {
-      alert(msg);
-      location.reload();
-    });
+    socket.on('auth-error', (msg) => alert(msg));
+    socket.on('user-banned', (msg) => { alert(msg); location.reload(); });
 
     socket.on('chat-history', (history) => {
-      const messagesContainer = document.getElementById('chat-messages');
-      messagesContainer.innerHTML = '';
+      const chatBox = document.getElementById('chatBox');
+      chatBox.innerHTML = '';
       history.forEach(renderMessage);
     });
 
@@ -137,42 +215,146 @@
       renderMessage(msg);
     });
 
+    socket.on('message-deleted', ({ msgId }) => {
+      const el = document.getElementById(msgId);
+      if (el) el.remove();
+    });
+
+    socket.on('all-messages-cleared', () => {
+      document.getElementById('chatBox').innerHTML = '';
+    });
+
     function renderMessage(msg) {
-      const messagesContainer = document.getElementById('chat-messages');
-      const div = document.createElement('div');
+      const chatBox = document.getElementById('chatBox');
 
       if (msg.type === 'system') {
-        div.className = 'msg system';
-        div.innerText = msg.payload.text;
+        const row = document.createElement('div');
+        row.className = 'msg-row system-row';
+        row.innerHTML = `<div class="msg system">${msg.payload.text}</div>`;
+        chatBox.appendChild(row);
       } else {
-        div.className = 'msg';
-        div.innerText = `${msg.payload.text}`;
+        const isMe = msg.payload.user === currentUser;
+        const row = document.createElement('div');
+        row.className = `msg-row ${isMe ? 'me' : ''}`;
+        row.id = msg.id;
+
+        const avatarUrl = getUserAvatar(msg.payload.user, msg.role);
+        const avatarImg = `<img src="${avatarUrl}" class="user-avatar ${msg.role === 'admin' ? 'admin-avatar' : ''}">`;
+
+        let bodyHtml = '';
+        if (msg.payload.reply) {
+          bodyHtml += `<div class="reply-quote"><div class="reply-author">${msg.payload.reply.user}</div><div class="reply-text">${msg.payload.reply.text}</div></div>`;
+        }
+
+        if (msg.type === 'image') {
+          bodyHtml += `<img src="${msg.payload.fileData}" class="chat-image">`;
+        } else if (msg.type === 'file') {
+          bodyHtml += `<div class="file-card">📁 <a href="${msg.payload.fileData}" download="${msg.payload.fileName}" class="download-link">${msg.payload.fileName}</a></div>`;
+        } else {
+          bodyHtml += `<div>${msg.payload.text}</div>`;
+        }
+
+        const canDelete = isMe || currentRole === 'admin';
+        const deleteBtn = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>` : '';
+        const adminTag = msg.role === 'admin' ? `<span class="admin-badge">ADMIN</span>` : '';
+
+        row.innerHTML = `
+          ${avatarImg}
+          <div class="msg ${isMe ? 'me' : 'other'} ${msg.role === 'admin' ? 'admin-msg' : ''}">
+            <div class="msg-header">
+              <span>${msg.payload.user}${adminTag}</span>
+              <div>
+                <button class="delete-btn" onclick="setReply('${msg.payload.user}', '${msg.payload.text || 'Media'}')">↩️</button>
+                ${deleteBtn}
+              </div>
+            </div>
+            ${bodyHtml}
+          </div>
+        `;
+        chatBox.appendChild(row);
       }
-
-      messagesContainer.appendChild(div);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    // Send Message logic
-    document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('msgInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
 
     function sendMessage() {
       const input = document.getElementById('msgInput');
       const text = input.value.trim();
       if (!text) return;
 
+      const payload = { user: currentUser, text: text };
+      if (replyTarget) {
+        payload.reply = replyTarget;
+        clearReplyTarget();
+      }
+
       socket.emit('chat-message', {
-        room: currentRoom,
+        room: 'main-room',
         type: 'text',
-        payload: { text: text },
+        payload: payload,
         deviceId: deviceId
       });
-
       input.value = '';
     }
+
+    function sendMediaFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const isImage = file.type.startsWith('image/');
+        socket.emit('chat-message', {
+          room: 'main-room',
+          type: isImage ? 'image' : 'file',
+          payload: {
+            user: currentUser,
+            fileName: file.name,
+            fileData: e.target.result
+          },
+          deviceId: deviceId
+        });
+        input.value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function setReply(user, text) {
+      replyTarget = { user, text };
+      document.getElementById('replyUserTarget').innerText = user;
+      document.getElementById('replyTextTarget').innerText = text;
+      document.getElementById('replyBar').style.display = 'flex';
+    }
+
+    function clearReplyTarget() {
+      replyTarget = null;
+      document.getElementById('replyBar').style.display = 'none';
+    }
+
+    function deleteMessage(msgId) {
+      socket.emit('delete-message', { room: 'main-room', msgId });
+    }
+
+    function openAdminModal() { document.getElementById('adminModal').style.display = 'flex'; }
+    function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
+
+    function clearAllMessages() {
+      if (confirm("Clear all chat history?")) {
+        socket.emit('admin-clear-all-messages', { room: 'main-room' });
+        closeAdminModal();
+      }
+    }
+
+    function banUser() {
+      const user = document.getElementById('banUserInput').value.trim();
+      if (user) {
+        socket.emit('admin-ban-user', { room: 'main-room', username: user });
+        alert(`Banned ${user}`);
+        closeAdminModal();
+      }
+    }
+
+    function joinVoiceCall() { document.getElementById('callScreen').style.display = 'flex'; }
+    function leaveVoiceCall() { document.getElementById('callScreen').style.display = 'none'; }
   </script>
 </body>
 </html>
