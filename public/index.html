@@ -46,11 +46,17 @@
     .file-card { background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .download-link { color: #53bdeb; text-decoration: none; font-size: 12px; font-weight: bold; }
 
+    /* Audio Player Styling */
+    .voice-note-player { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .voice-note-player audio { height: 32px; max-width: 220px; }
+
     .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
     .reply-bar { background: #182229; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; font-size: 12px; }
     .input-bar { padding: 8px 12px; display: flex; align-items: center; gap: 8px; min-height: 56px; }
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; display: flex; align-items: center; justify-content: center; }
+    .icon-btn.recording { color: #ea0038; animation: pulse 1s infinite alternate; }
+    @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.2); } }
 
     .image-preview-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: space-between; z-index: 3000; }
     .preview-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); }
@@ -76,8 +82,6 @@
     .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a3942; }
     .wa-dock-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: #2a3942; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .wa-dock-btn.active { background: #ea0038; color: #fff; }
-    
-    /* Downward facing Hang-up Icon */
     .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; font-size: 24px; transform: rotate(135deg); }
 
     .modal-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2500; }
@@ -121,6 +125,7 @@
           📎
           <input type="file" id="fileInput" style="display:none;" onchange="sendMediaFile(this)">
         </label>
+        <button class="icon-btn" id="voiceNoteBtn" onclick="toggleVoiceNoteRecording()">🎤</button>
         <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
         <button class="btn" onclick="sendMessage()">Send</button>
       </div>
@@ -215,6 +220,11 @@
     let isSpeakerOn = true;
     let callTimerInterval = null;
     let callSeconds = 0;
+
+    // Voice Note Recording variables
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecordingVoiceNote = false;
 
     let deviceId = localStorage.getItem('chat_device_id');
     if (!deviceId) {
@@ -331,6 +341,12 @@
               <a href="${msg.payload.fileData}" download="${fileName}" class="img-download-btn">📥 Download</a>
             </div>
           `;
+        } else if (msg.type === 'voice') {
+          bodyHtml += `
+            <div class="voice-note-player">
+              <audio controls src="${msg.payload.fileData}"></audio>
+            </div>
+          `;
         } else if (msg.type === 'file') {
           bodyHtml += `<div class="file-card">📁 <a href="${msg.payload.fileData}" download="${msg.payload.fileName}" class="download-link">${msg.payload.fileName}</a></div>`;
         } else {
@@ -357,6 +373,58 @@
         chatBox.appendChild(row);
       }
       chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // --- Voice Note Recording Logic ---
+    async function toggleVoiceNoteRecording() {
+      const voiceBtn = document.getElementById('voiceNoteBtn');
+      const inputField = document.getElementById('msgInput');
+
+      if (!isRecordingVoiceNote) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const payload = { user: currentUser, fileData: e.target.result };
+              if (replyTarget) {
+                payload.reply = replyTarget;
+                clearReplyTarget();
+              }
+              socket.emit('chat-message', {
+                room: 'main-room',
+                type: 'voice',
+                payload: payload,
+                deviceId: deviceId
+              });
+            };
+            reader.readAsDataURL(audioBlob);
+            stream.getTracks().forEach(track => track.stop());
+          };
+
+          mediaRecorder.start();
+          isRecordingVoiceNote = true;
+          voiceBtn.classList.add('recording');
+          inputField.placeholder = 'Recording voice note... Tap mic to send';
+        } catch (err) {
+          alert('Microphone permission required for voice notes: ' + err.message);
+        }
+      } else {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        isRecordingVoiceNote = false;
+        voiceBtn.classList.remove('recording');
+        inputField.placeholder = 'Type a message...';
+      }
     }
 
     function openImagePreview(src, filename) {
@@ -472,7 +540,6 @@
       `;
     }
 
-    // --- WebRTC Implementation ---
     function setupPeerConnection() {
       peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -562,7 +629,6 @@
       }, 1000);
     }
 
-    // Toggle mute: Stops active hardware track to disable mobile green dot indicator
     async function toggleMute() {
       const btn = document.getElementById('muteBtn');
       if (!isMuted) {
