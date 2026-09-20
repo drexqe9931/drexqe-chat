@@ -2,31 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Drexqe Group Chat</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body { background-color: #0b141a; color: #e9edef; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background-color: #0b141a; color: #e9edef; }
     
-    /* Header */
-    .header { background: #202c33; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; border-bottom: 1px solid #2a3942; }
+    #app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; position: relative; }
+
+    /* Header & Group Profile */
+    .header { background: #202c33; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; min-height: 60px; border-bottom: 1px solid #2a3942; z-index: 10; }
+    .header-left { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .group-dp { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00a884; object-fit: cover; }
     .header-info h2 { font-size: 16px; color: #e9edef; font-weight: 600; }
-    .header-info p { font-size: 12px; color: #8696a0; }
+    .header-info p { font-size: 11px; color: #8696a0; }
     .header-actions { display: flex; gap: 8px; }
     .btn { background: #00a884; color: #111b21; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .btn-danger { background: #ea0038; color: #fff; }
 
-    /* Chat Area */
+    /* Messages Area */
     .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0b141a; }
     .msg-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
     .msg-row.me { flex-direction: row-reverse; }
     .msg-row.system-row { justify-content: center; margin: 8px 0; }
     
-    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #2a3942; object-fit: cover; }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: #2a3942; object-fit: cover; flex-shrink: 0; }
     .admin-avatar { border: 2px solid #f39c12; }
 
-    .msg { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; word-wrap: break-word; }
+    .msg { max-width: 78%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; word-wrap: break-word; user-select: none; }
     .msg.other { background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
     .msg.me { background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
     .msg.admin-msg { border-left: 3px solid #f39c12; }
@@ -34,25 +38,25 @@
 
     .msg-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; color: #8696a0; }
     .admin-badge { background: #f39c12; color: #000; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
-    .delete-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.6; }
-    .delete-btn:hover { opacity: 1; }
+    .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.7; color: #8696a0; }
 
-    /* Reply Snippet & Images */
-    .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid #00a884; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
+    /* Reply Snippet & Media */
+    .reply-quote { background: rgba(0,0,0,0.25); border-left: 3px solid #00a884; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
     .reply-author { color: #00a884; font-weight: bold; font-size: 11px; }
     .reply-text { color: #d1d7db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     
-    .chat-image { max-width: 100%; max-height: 250px; border-radius: 8px; margin-top: 4px; cursor: pointer; }
+    .chat-image { max-width: 100%; max-height: 250px; border-radius: 8px; margin-top: 4px; cursor: pointer; display: block; }
     .file-card { background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .download-link { color: #53bdeb; text-decoration: none; font-size: 12px; font-weight: bold; }
 
-    /* Input Bar */
-    .reply-bar { background: #182229; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a3942; font-size: 12px; }
-    .input-bar { background: #202c33; padding: 8px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #2a3942; }
+    /* Bottom Input Bar */
+    .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; }
+    .reply-bar { background: #182229; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; font-size: 12px; }
+    .input-bar { padding: 8px 12px; display: flex; align-items: center; gap: 8px; min-height: 56px; }
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
-    .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; }
+    .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; display: flex; align-items: center; justify-content: center; }
 
-    /* Modals */
+    /* Modals & Overlays */
     .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
     .modal-card h3 { color: #e9edef; font-size: 18px; text-align: center; }
@@ -60,49 +64,56 @@
     .pass-field-wrap { position: relative; width: 100%; display: flex; align-items: center; }
     .pass-field-wrap span { position: absolute; right: 12px; cursor: pointer; font-size: 18px; user-select: none; }
 
-    /* Call Screen */
-    .call-screen { position: fixed; top:0; left:0; right:0; bottom:0; background: #111b21; display: flex; flex-direction: column; z-index: 900; }
-    .call-grid { flex: 1; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; align-content: center; }
-    .user-card { background: #202c33; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .call-controls { background: #202c33; padding: 16px; display: flex; justify-content: center; gap: 20px; }
-    .call-btn { width: 50px; height: 50px; border-radius: 50%; border: none; background: #2a3942; color: #fff; font-size: 20px; cursor: pointer; }
+    /* Voice Call Banner */
+    .call-screen { position: fixed; top:0; left:0; right:0; bottom:0; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 900; }
+    .call-grid { flex: 1; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .call-controls { background: #202c33; padding: 20px; display: flex; justify-content: center; gap: 20px; border-top: 1px solid #2a3942; }
+    .call-btn { width: 56px; height: 56px; border-radius: 50%; border: none; background: #2a3942; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-info">
-      <h2 id="roomTitle">Drexqe Group</h2>
-      <p id="userInfoSub">🔒 End-to-End Encrypted Secure Network</p>
+  <div id="app-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left" onclick="openGroupDetails()">
+        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=DrexqeGroupNetwork" class="group-dp" alt="Group DP">
+        <div class="header-info">
+          <h2 id="roomTitle">Drexqe Group</h2>
+          <p id="userInfoSub">🔒 Tap here for group info</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn" onclick="startVoiceCall()">📞 Call</button>
+        <button class="btn btn-danger" id="adminBtn" style="display:none;" onclick="openAdminModal()">⚙️ Admin</button>
+      </div>
     </div>
-    <div class="header-actions">
-      <button class="btn" onclick="joinVoiceCall()">📞 Call</button>
-      <button class="btn btn-danger" id="adminBtn" style="display:none;" onclick="openAdminModal()">⚙️ Admin</button>
+
+    <!-- Chat Messages Box -->
+    <div class="chat-box" id="chatBox"></div>
+
+    <!-- Bottom Controls Container -->
+    <div class="bottom-controls">
+      <!-- Reply Target Bar -->
+      <div class="reply-bar" id="replyBar" style="display:none;">
+        <div>
+          <span style="color:#00a884; font-weight:bold;">Replying to </span>
+          <span id="replyUserTarget" style="font-weight:bold; color:#e9edef;"></span>
+          <div id="replyTextTarget" style="color:#8696a0; font-size:11px;"></div>
+        </div>
+        <button class="icon-btn" onclick="clearReplyTarget()">✕</button>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="input-bar">
+        <label class="icon-btn" style="cursor:pointer;">
+          📎
+          <input type="file" id="fileInput" style="display:none;" onchange="sendMediaFile(this)">
+        </label>
+        <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
+        <button class="btn" onclick="sendMessage()">Send</button>
+      </div>
     </div>
-  </div>
-
-  <!-- Chat Messages Box -->
-  <div class="chat-box" id="chatBox"></div>
-
-  <!-- Reply Target Bar -->
-  <div class="reply-bar" id="replyBar" style="display:none;">
-    <div>
-      <span style="color:#00a884; font-weight:bold;">Replying to </span>
-      <span id="replyUserTarget" style="font-weight:bold; color:#e9edef;"></span>
-      <div id="replyTextTarget" style="color:#8696a0; font-size:11px;"></div>
-    </div>
-    <button class="icon-btn" onclick="clearReplyTarget()">✕</button>
-  </div>
-
-  <!-- Input Bar -->
-  <div class="input-bar">
-    <label class="icon-btn" style="cursor:pointer;">
-      📎
-      <input type="file" id="fileInput" style="display:none;" onchange="sendMediaFile(this)">
-    </label>
-    <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
-    <button class="btn" onclick="sendMessage()">Send</button>
   </div>
 
   <!-- Login Modal -->
@@ -122,26 +133,53 @@
     </div>
   </div>
 
-  <!-- Admin Modal -->
+  <!-- Group Info Modal -->
+  <div class="modal-overlay" id="groupModal" style="display:none;" onclick="closeGroupDetails()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div style="text-align: center;">
+        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=DrexqeGroupNetwork" style="width:80px; height:80px; border-radius:50%; border:3px solid #00a884; margin-bottom:10px;">
+        <h3>Drexqe Group Chat</h3>
+        <p style="font-size:12px; color:#8696a0; margin-top:4px;">Official End-to-End Encrypted Community Network</p>
+      </div>
+      <hr style="border:0; border-top:1px solid #3b4a54;">
+      <div>
+        <h4 style="font-size:13px; color:#00a884; margin-bottom:4px;">Group Description</h4>
+        <p style="font-size:12px; color:#d1d7db; line-height:1.4;">Welcome to the Drexqe Group! A secure end-to-end encrypted messaging space for group interactions, voice calling, file sharing, and auto-moderated chats.</p>
+      </div>
+      <button class="btn" onclick="closeGroupDetails()">Close</button>
+    </div>
+  </div>
+
+  <!-- Admin Control Panel Modal -->
   <div class="modal-overlay" id="adminModal" style="display:none;">
     <div class="modal-card">
       <h3>Admin Control Panel</h3>
       <button class="btn btn-danger" onclick="clearAllMessages()">🗑️ Clear All Messages</button>
       <hr style="border:0; border-top:1px solid #3b4a54; margin:4px 0;">
-      <h4 style="color:#e9edef; font-size:14px;">Ban Device</h4>
-      <input type="text" id="banUserInput" placeholder="Enter Username to Ban">
-      <button class="btn btn-danger" onclick="banUser()">Ban User</button>
+      <h4 style="color:#e9edef; font-size:14px;">User Moderation</h4>
+      <input type="text" id="adminTargetUser" placeholder="Enter Username">
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-danger" style="flex:1;" onclick="banUser()">Ban User</button>
+        <button class="btn" style="flex:1;" onclick="unbanUser()">Unban User</button>
+      </div>
       <button class="btn" onclick="closeAdminModal()">Close</button>
     </div>
   </div>
 
   <!-- Voice Call Overlay -->
   <div class="call-screen" id="callScreen" style="display:none;">
-    <div class="call-grid" id="callUsersGrid"></div>
+    <div class="call-grid">
+      <div style="text-align:center;">
+        <div style="font-size:56px; margin-bottom:12px;">🎙️</div>
+        <h3 id="callStatusText">Calling Room...</h3>
+      </div>
+    </div>
     <div class="call-controls">
-      <button class="call-btn btn-danger" onclick="leaveVoiceCall()">📞 Hang Up</button>
+      <button class="call-btn btn-danger" onclick="leaveVoiceCall()">📞</button>
     </div>
   </div>
+
+  <audio id="remoteAudio" autoplay></audio>
 
   <script>
     const socket = io();
@@ -149,8 +187,9 @@
     let currentUser = '';
     let currentRole = 'member';
     let replyTarget = null;
+    let localStream = null;
+    let peerConnection = null;
 
-    // Device Fingerprint
     let deviceId = localStorage.getItem('chat_device_id');
     if (!deviceId) {
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -165,6 +204,7 @@
       passInput.setAttribute('type', isPass ? 'text' : 'password');
     });
 
+    // Stylish Avatars Logic
     function getUserAvatar(username, role) {
       if (role === 'admin') {
         return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
@@ -196,14 +236,16 @@
 
     socket.on('auth-success', () => {
       document.getElementById('loginModal').style.display = 'none';
-      document.getElementById('userInfoSub').innerText = `${currentUser} (${currentRole})`;
+      document.getElementById('userInfoSub').innerText = `${currentUser} (${currentRole}) • Tap for info`;
       if (currentRole === 'admin') {
         document.getElementById('adminBtn').style.display = 'block';
       }
     });
 
     socket.on('auth-error', (msg) => alert(msg));
+    socket.on('warning-msg', (msg) => alert(msg));
     socket.on('user-banned', (msg) => { alert(msg); location.reload(); });
+    socket.on('admin-action-success', (msg) => alert(msg));
 
     socket.on('chat-history', (history) => {
       const chatBox = document.getElementById('chatBox');
@@ -255,23 +297,41 @@
         }
 
         const canDelete = isMe || currentRole === 'admin';
-        const deleteBtn = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>` : '';
+        const deleteBtn = canDelete ? `<button class="action-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>` : '';
         const adminTag = msg.role === 'admin' ? `<span class="admin-badge">ADMIN</span>` : '';
 
         row.innerHTML = `
           ${avatarImg}
-          <div class="msg ${isMe ? 'me' : 'other'} ${msg.role === 'admin' ? 'admin-msg' : ''}">
+          <div class="msg ${isMe ? 'me' : 'other'} ${msg.role === 'admin' ? 'admin-msg' : ''}" id="bubble_${msg.id}">
             <div class="msg-header">
               <span>${msg.payload.user}${adminTag}</span>
               <div>
-                <button class="delete-btn" onclick="setReply('${msg.payload.user}', '${msg.payload.text || 'Media'}')">↩️</button>
+                <button class="action-btn" onclick="setReply('${msg.payload.user}', '${msg.payload.text || 'Media'}')">↩️</button>
                 ${deleteBtn}
               </div>
             </div>
             ${bodyHtml}
           </div>
         `;
+
         chatBox.appendChild(row);
+
+        // Double Tap to Reply Feature
+        const msgBubble = document.getElementById(`bubble_${msg.id}`);
+        let lastTap = 0;
+        msgBubble.addEventListener('touchend', (e) => {
+          const currentTime = new Date().getTime();
+          const tapLength = currentTime - lastTap;
+          if (tapLength < 300 && tapLength > 0) {
+            setReply(msg.payload.user, msg.payload.text || 'Media');
+            e.preventDefault();
+          }
+          lastTap = currentTime;
+        });
+
+        msgBubble.addEventListener('dblclick', () => {
+          setReply(msg.payload.user, msg.payload.text || 'Media');
+        });
       }
       chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -330,12 +390,11 @@
       document.getElementById('replyBar').style.display = 'none';
     }
 
-    function deleteMessage(msgId) {
-      socket.emit('delete-message', { room: 'main-room', msgId });
-    }
-
+    function deleteMessage(msgId) { socket.emit('delete-message', { room: 'main-room', msgId }); }
     function openAdminModal() { document.getElementById('adminModal').style.display = 'flex'; }
     function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
+    function openGroupDetails() { document.getElementById('groupModal').style.display = 'flex'; }
+    function closeGroupDetails() { document.getElementById('groupModal').style.display = 'none'; }
 
     function clearAllMessages() {
       if (confirm("Clear all chat history?")) {
@@ -345,16 +404,68 @@
     }
 
     function banUser() {
-      const user = document.getElementById('banUserInput').value.trim();
+      const user = document.getElementById('adminTargetUser').value.trim();
       if (user) {
         socket.emit('admin-ban-user', { room: 'main-room', username: user });
         alert(`Banned ${user}`);
-        closeAdminModal();
       }
     }
 
-    function joinVoiceCall() { document.getElementById('callScreen').style.display = 'flex'; }
-    function leaveVoiceCall() { document.getElementById('callScreen').style.display = 'none'; }
+    function unbanUser() {
+      const user = document.getElementById('adminTargetUser').value.trim();
+      if (user) {
+        socket.emit('admin-unban-user', { room: 'main-room', username: user });
+      }
+    }
+
+    // WebRTC Real-Time Voice Call
+    async function startVoiceCall() {
+      document.getElementById('callScreen').style.display = 'flex';
+      document.getElementById('callStatusText').innerText = 'Connecting voice call...';
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        peerConnection = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        peerConnection.ontrack = (event) => {
+          document.getElementById('remoteAudio').srcObject = event.streams[0];
+          document.getElementById('callStatusText').innerText = 'Voice Call Active 🎙️';
+        };
+
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit('call-user', { room: 'main-room', signalData: event.candidate, from: currentUser });
+          }
+        };
+      } catch (err) {
+        alert('Could not access microphone: ' + err.message);
+        leaveVoiceCall();
+      }
+    }
+
+    socket.on('incoming-call', async (data) => {
+      if (peerConnection) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.signal));
+      }
+    });
+
+    function leaveVoiceCall() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      if (peerConnection) {
+        peerConnection.close();
+      }
+      document.getElementById('callScreen').style.display = 'none';
+      socket.emit('end-call', { room: 'main-room' });
+    }
+
+    socket.on('call-ended', () => {
+      leaveVoiceCall();
+    });
   </script>
 </body>
 </html>

@@ -1,150 +1,157 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  maxHttpBufferSize: 1e8 // 100 MB max payload for files
-});
+const io = new Server(server, { maxHttpBufferSize: 1e7 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-// PASSKEYS SET HERE
-const MEMBER_PASSKEY = "9460";
-const ADMIN_PASSKEY = "M4nil@l019";
+const PASSKEYS = {
+  member: '9460',
+  admin: 'M4nil@l019'
+};
 
-let chatHistory = [];
-let bannedDevices = new Set();
-let userWarnings = {};
-let activeCallUsers = new Set();
+// English & Hinglish Banned Words List
+const BANNED_WORDS = [
+  // English
+  'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'cunt', 'dick', 'pussy', 'scam',
+  // Hinglish / Hindi
+  'bc', 'mc', 'bhenchod', 'madarchod', 'gaand', 'gand', 'chutiya', 'chutiye', 
+  'bsdk', 'bhosdike', 'harami', 'saala', 'sala', 'kamina', 'kamine', 'maderchod',
+  'bhen ke lode', 'bhenkelode', 'gandmarike', 'randi', 'lauda', 'loda'
+];
 
-const ABUSE_WORDS = ["badword1", "badword2"]; // Add any filtered words here
+const messages = [];
+const bannedUsers = new Set();
+const bannedDevices = new Set();
+const userWarnings = new Map(); // Tracks strike counts per user
 
 io.on('connection', (socket) => {
-  
   socket.on('join-room', ({ room, user, role, passkey, deviceId }) => {
-    if (bannedDevices.has(deviceId)) {
-      return socket.emit('user-banned', 'Your device is permanently banned from this chat.');
+    if (bannedUsers.has(user) || bannedDevices.has(deviceId)) {
+      socket.emit('user-banned', 'You or your device is permanently banned from this chat.');
+      return;
     }
 
-    // Force string comparison to avoid type mismatches
-    const cleanPasskey = String(passkey).trim();
-    const isMemberValid = role === 'member' && cleanPasskey === MEMBER_PASSKEY;
-    const isAdminValid = role === 'admin' && cleanPasskey === ADMIN_PASSKEY;
-
-    if (!isMemberValid && !isAdminValid) {
-      return socket.emit('auth-error', 'Invalid passkey for selected role.');
+    if (PASSKEYS[role] !== passkey) {
+      socket.emit('auth-error', 'Invalid Passkey!');
+      return;
     }
 
     socket.join(room);
-    socket.data = { user, role, deviceId, room };
-    
-    socket.emit('auth-success');
-    socket.emit('chat-history', chatHistory);
+    socket.userData = { user, role, deviceId, room };
 
-    io.to(room).emit('chat-message', {
+    socket.emit('auth-success');
+    socket.emit('chat-history', messages);
+
+    const sysMsg = {
+      id: 'sys_' + Date.now(),
       type: 'system',
       payload: { text: `👋 ${user} joined the chat.` }
-    });
+    };
+    messages.push(sysMsg);
+    io.to(room).emit('chat-message', sysMsg);
   });
 
-  socket.on('chat-message', ({ room, id, type, payload, deviceId }) => {
-    if (bannedDevices.has(deviceId)) return;
+  socket.on('chat-message', (data) => {
+    const { room, type, payload, deviceId } = data;
 
-    if (payload.text) {
+    if (bannedUsers.has(payload.user) || bannedDevices.has(deviceId)) {
+      socket.emit('user-banned', 'You are banned from participating.');
+      return;
+    }
+
+    // Auto-Moderation Check for Text Messages (English & Hinglish)
+    if (type === 'text' && payload.text) {
       const lowerText = payload.text.toLowerCase();
-      const detectedWord = ABUSE_WORDS.find(w => lowerText.includes(w));
-      if (detectedWord) {
-        userWarnings[deviceId] = (userWarnings[deviceId] || 0) + 1;
-        if (userWarnings[deviceId] >= 3) {
-          bannedDevices.add(deviceId);
-          return socket.emit('user-banned', 'You were automatically banned for repeated policy violations.');
+      
+      // Match exact words or substrings for slang filters
+      const containsAbusive = BANNED_WORDS.some(word => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(lowerText) || lowerText.includes(word);
+      });
+
+      if (containsAbusive) {
+        const currentStrikes = (userWarnings.get(payload.user) || 0) + 1;
+        userWarnings.set(payload.user, currentStrikes);
+
+        if (currentStrikes >= 3) {
+          bannedUsers.add(payload.user);
+          if (deviceId) bannedDevices.add(deviceId);
+
+          const banMsg = {
+            id: 'sys_' + Date.now(),
+            type: 'system',
+            payload: { text: `🚫 ${payload.user} was automatically banned after receiving 3 warnings for abusive language.` }
+          };
+          messages.push(banMsg);
+          io.to(room).emit('chat-message', banMsg);
+          socket.emit('user-banned', 'You have been automatically banned for repeated use of abusive language (3 Strikes).');
+          socket.disconnect();
+          return;
+        } else {
+          socket.emit('warning-msg', `⚠️ Warning (${currentStrikes}/3): Abusive language (English/Hinglish) is strictly prohibited! Message deleted. You will be permanently banned after 3 warnings.`);
+          return; // Block message from broadcast
         }
-        return socket.emit('abuse-warning', { warnings: userWarnings[deviceId], word: detectedWord });
       }
     }
 
-    const msgData = {
-      id: id || "msg_" + Date.now(),
-      type: type || "text",
-      role: socket.data.role || "member",
+    const msgObj = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      type: type,
+      role: socket.userData ? socket.userData.role : 'member',
       payload: payload
     };
 
-    chatHistory.push(msgData);
-    if (chatHistory.length > 200) chatHistory.shift();
-
-    io.to(room).emit('chat-message', msgData);
+    messages.push(msgObj);
+    io.to(room).emit('chat-message', msgObj);
   });
 
   socket.on('delete-message', ({ room, msgId }) => {
-    chatHistory = chatHistory.filter(m => m.id !== msgId);
-    io.to(room).emit('message-deleted', { msgId });
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx !== -1) {
+      messages.splice(idx, 1);
+      io.to(room).emit('message-deleted', { msgId });
+    }
   });
 
   socket.on('admin-clear-all-messages', ({ room }) => {
-    if (socket.data.role === 'admin') {
-      chatHistory = [];
+    if (socket.userData && socket.userData.role === 'admin') {
+      messages.length = 0;
       io.to(room).emit('all-messages-cleared');
     }
   });
 
   socket.on('admin-ban-user', ({ room, username }) => {
-    if (socket.data.role === 'admin') {
-      for (let [id, s] of io.of("/").sockets) {
-        if (s.data.user === username) {
-          bannedDevices.add(s.data.deviceId);
-          s.emit('user-banned', 'You have been banned by an admin.');
-          s.disconnect();
-        }
-      }
-      io.to(room).emit('update-banned-list', Array.from(bannedDevices));
+    if (socket.userData && socket.userData.role === 'admin') {
+      bannedUsers.add(username);
+      io.to(room).emit('user-banned-notice', { username });
     }
   });
 
   socket.on('admin-unban-user', ({ room, username }) => {
-    if (socket.data.role === 'admin') {
-      io.to(room).emit('update-banned-list', Array.from(bannedDevices));
+    if (socket.userData && socket.userData.role === 'admin') {
+      bannedUsers.delete(username);
+      userWarnings.delete(username);
+      socket.emit('admin-action-success', `User ${username} has been unbanned.`);
     }
   });
 
-  socket.on('get-banned-users', () => {
-    socket.emit('update-banned-list', Array.from(bannedDevices));
+  // WebRTC Audio Signaling
+  socket.on('call-user', (data) => {
+    socket.to(data.room).emit('incoming-call', { signal: data.signalData, from: data.from });
   });
 
-  // WebRTC Signaling
-  socket.on('voice-join', ({ room, user }) => {
-    activeCallUsers.add(user);
-    socket.to(room).emit('user-joined-call', { socketId: socket.id, user });
-    io.to(room).emit('update-call-users', Array.from(activeCallUsers));
+  socket.on('accept-call', (data) => {
+    socket.to(data.room).emit('call-accepted', data.signal);
   });
 
-  socket.on('voice-signal', ({ target, signal }) => {
-    io.to(target).emit('voice-signal', { sender: socket.id, signal });
-  });
-
-  socket.on('voice-leave', ({ room }) => {
-    if (socket.data && socket.data.user) {
-      activeCallUsers.delete(socket.data.user);
-      io.to(room).emit('update-call-users', Array.from(activeCallUsers));
-    }
-    socket.to(room).emit('user-left-call', { socketId: socket.id });
-  });
-
-  socket.on('disconnect', () => {
-    if (socket.data && socket.data.user) {
-      activeCallUsers.delete(socket.data.user);
-      if (socket.data.room) {
-        io.to(socket.data.room).emit('update-call-users', Array.from(activeCallUsers));
-        socket.to(socket.data.room).emit('user-left-call', { socketId: socket.id });
-      }
-    }
+  socket.on('end-call', (data) => {
+    socket.to(data.room).emit('call-ended');
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
