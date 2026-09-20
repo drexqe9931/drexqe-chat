@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Drexqe Group Chat</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    html, body { height: 100%; width: 100%; overflow: hidden; background-color: #0b141a; color: #e9edef; }
+    html, body { height: 100%; height: 100dvh; width: 100vw; overflow: hidden; background-color: #0b141a; color: #e9edef; }
     
-    #app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; position: relative; }
+    #app-container { display: flex; flex-direction: column; height: 100%; height: 100dvh; width: 100vw; position: relative; }
 
     /* Header & Group Profile */
-    .header { background: #202c33; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; min-height: 60px; border-bottom: 1px solid #2a3942; z-index: 10; }
+    .header { background: #202c33; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; min-height: 60px; border-bottom: 1px solid #2a3942; z-index: 10; flex-shrink: 0; }
     .header-left { display: flex; align-items: center; gap: 12px; cursor: pointer; }
     .group-dp { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00a884; object-fit: cover; }
     .header-info h2 { font-size: 16px; color: #e9edef; font-weight: 600; }
@@ -49,8 +49,8 @@
     .file-card { background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .download-link { color: #53bdeb; text-decoration: none; font-size: 12px; font-weight: bold; }
 
-    /* Bottom Input Bar */
-    .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; }
+    /* Fixed Bottom Input Bar */
+    .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
     .reply-bar { background: #182229; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; font-size: 12px; }
     .input-bar { padding: 8px 12px; display: flex; align-items: center; gap: 8px; min-height: 56px; }
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
@@ -64,11 +64,12 @@
     .pass-field-wrap { position: relative; width: 100%; display: flex; align-items: center; }
     .pass-field-wrap span { position: absolute; right: 12px; cursor: pointer; font-size: 18px; user-select: none; }
 
-    /* Voice Call Banner */
-    .call-screen { position: fixed; top:0; left:0; right:0; bottom:0; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 900; }
+    /* Voice Call Banner & Full Call Controls */
+    .call-screen { position: fixed; top:0; left:0; right:0; bottom:0; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 900; }
     .call-grid { flex: 1; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
-    .call-controls { background: #202c33; padding: 20px; display: flex; justify-content: center; gap: 20px; border-top: 1px solid #2a3942; }
+    .call-controls { background: #202c33; padding: 20px; display: flex; justify-content: center; align-items: center; gap: 24px; border-top: 1px solid #2a3942; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
     .call-btn { width: 56px; height: 56px; border-radius: 50%; border: none; background: #2a3942; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .call-btn.active { background: #ea0038; }
   </style>
 </head>
 <body>
@@ -166,16 +167,18 @@
     </div>
   </div>
 
-  <!-- Voice Call Overlay -->
+  <!-- Voice Call Overlay with Complete Call Controls -->
   <div class="call-screen" id="callScreen" style="display:none;">
     <div class="call-grid">
       <div style="text-align:center;">
-        <div style="font-size:56px; margin-bottom:12px;">🎙️</div>
+        <div style="font-size:64px; margin-bottom:12px;">🎙️</div>
         <h3 id="callStatusText">Calling Room...</h3>
       </div>
     </div>
     <div class="call-controls">
-      <button class="call-btn btn-danger" onclick="leaveVoiceCall()">📞</button>
+      <button class="call-btn" id="muteBtn" onclick="toggleMute()" title="Mute/Unmute">🎤</button>
+      <button class="call-btn btn-danger" onclick="leaveVoiceCall()" title="End Call">📞</button>
+      <button class="call-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Speaker Toggle">🔊</button>
     </div>
   </div>
 
@@ -189,6 +192,8 @@
     let replyTarget = null;
     let localStream = null;
     let peerConnection = null;
+    let isMuted = false;
+    let isSpeakerOn = true;
 
     let deviceId = localStorage.getItem('chat_device_id');
     if (!deviceId) {
@@ -196,7 +201,7 @@
       localStorage.setItem('chat_device_id', deviceId);
     }
 
-    // Toggle Password Eye Visibility
+    // Password Toggle
     const passInput = document.getElementById('passkeyInput');
     const eyeBtn = document.getElementById('toggleEyeBtn');
     eyeBtn.addEventListener('click', () => {
@@ -204,7 +209,7 @@
       passInput.setAttribute('type', isPass ? 'text' : 'password');
     });
 
-    // Stylish Avatars Logic
+    // Avatars
     function getUserAvatar(username, role) {
       if (role === 'admin') {
         return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
@@ -253,9 +258,7 @@
       history.forEach(renderMessage);
     });
 
-    socket.on('chat-message', (msg) => {
-      renderMessage(msg);
-    });
+    socket.on('chat-message', (msg) => { renderMessage(msg); });
 
     socket.on('message-deleted', ({ msgId }) => {
       const el = document.getElementById(msgId);
@@ -316,7 +319,7 @@
 
         chatBox.appendChild(row);
 
-        // Double Tap to Reply Feature
+        // Double Tap to Reply
         const msgBubble = document.getElementById(`bubble_${msg.id}`);
         let lastTap = 0;
         msgBubble.addEventListener('touchend', (e) => {
@@ -418,7 +421,7 @@
       }
     }
 
-    // WebRTC Real-Time Voice Call
+    // Voice Calling Functions & Call Control Options
     async function startVoiceCall() {
       document.getElementById('callScreen').style.display = 'flex';
       document.getElementById('callStatusText').innerText = 'Connecting voice call...';
@@ -431,7 +434,8 @@
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         peerConnection.ontrack = (event) => {
-          document.getElementById('remoteAudio').srcObject = event.streams[0];
+          const remoteAudio = document.getElementById('remoteAudio');
+          remoteAudio.srcObject = event.streams[0];
           document.getElementById('callStatusText').innerText = 'Voice Call Active 🎙️';
         };
 
@@ -444,6 +448,28 @@
         alert('Could not access microphone: ' + err.message);
         leaveVoiceCall();
       }
+    }
+
+    function toggleMute() {
+      if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+          isMuted = !isMuted;
+          audioTrack.enabled = !isMuted;
+          const btn = document.getElementById('muteBtn');
+          btn.innerText = isMuted ? '🔇' : '🎤';
+          btn.classList.toggle('active', isMuted);
+        }
+      }
+    }
+
+    function toggleSpeaker() {
+      const remoteAudio = document.getElementById('remoteAudio');
+      isSpeakerOn = !isSpeakerOn;
+      remoteAudio.muted = !isSpeakerOn;
+      const btn = document.getElementById('speakerBtn');
+      btn.innerText = isSpeakerOn ? '🔊' : '🔈';
+      btn.classList.toggle('active', !isSpeakerOn);
     }
 
     socket.on('incoming-call', async (data) => {
@@ -463,9 +489,7 @@
       socket.emit('end-call', { room: 'main-room' });
     }
 
-    socket.on('call-ended', () => {
-      leaveVoiceCall();
-    });
+    socket.on('call-ended', () => { leaveVoiceCall(); });
   </script>
 </body>
 </html>
