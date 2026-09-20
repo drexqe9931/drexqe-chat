@@ -14,6 +14,25 @@
     .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
     .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
     .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; }
+    
+    /* Stylish Admin Message Styling */
+    .msg.admin-msg {
+      border: 1px solid #f39c12;
+      box-shadow: 0 0 8px rgba(243, 156, 18, 0.3);
+    }
+    .admin-badge {
+      background: linear-gradient(135deg, #f1c40f, #e67e22);
+      color: #000;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 5px;
+      display: inline-block;
+      vertical-align: middle;
+      box-shadow: 0 0 5px rgba(241, 196, 15, 0.5);
+    }
+
     .msg img { max-width: 100%; max-height: 250px; border-radius: 6px; margin-top: 5px; cursor: pointer; }
     .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
     .delete-btn { background: transparent; border: none; color: #8696a0; font-size: 12px; cursor: pointer; padding: 0 4px; }
@@ -143,11 +162,7 @@
 
     function togglePassVisibility() {
       const passInput = document.getElementById("passkeyInput");
-      if (passInput.type === "password") {
-        passInput.type = "text";
-      } else {
-        passInput.type = "password";
-      }
+      passInput.type = passInput.type === "password" ? "text" : "password";
     }
 
     function joinChat() {
@@ -178,7 +193,7 @@
     });
 
     socket.on("abuse-warning", ({ warnings, word }) => {
-      alert(`⚠️ Warning ${warnings}/3: Do not use offensive language ("${word}"). Reaching 3 warnings will result in an automatic ban!`);
+      alert(`⚠️ Warning ${warnings}/3: Offensive message containing "${word}" was blocked and deleted! Reaching 3 warnings will auto-ban you.`);
     });
 
     function sendMessage() {
@@ -257,12 +272,17 @@
         div.textContent = data.payload.text;
       } else {
         const isMe = data.payload.sender === currentUser;
-        div.className = "msg " + (isMe ? "me" : "other");
+        const isAdmin = data.role === "admin";
+        
+        let msgClasses = ["msg", isMe ? "me" : "other"];
+        if (isAdmin) msgClasses.push("admin-msg");
+        div.className = msgClasses.join(" ");
 
         const canDelete = isMe || userRole === "admin";
         const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${msgId}')">🗑️</button>` : '';
+        const adminBadgeMarkup = isAdmin ? `<span class="admin-badge">👑 ADMIN</span>` : '';
 
-        const headerHtml = `<div class="msg-header"><strong>${data.payload.sender}</strong>${deleteMarkup}</div>`;
+        const headerHtml = `<div class="msg-header"><span><strong>${data.payload.sender}</strong>${adminBadgeMarkup}</span>${deleteMarkup}</div>`;
 
         if (data.type === "voice") {
           div.innerHTML = `${headerHtml}<audio controls src="${data.payload.audio}"></audio>`;
