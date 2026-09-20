@@ -63,31 +63,28 @@
     .preview-body { flex: 1; display: flex; justify-content: center; align-items: center; padding: 12px; }
     .preview-body img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; }
 
-    /* Authentic WhatsApp Group Call Overlay */
+    /* WhatsApp Voice Call Overlay */
     .wa-call-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; }
     .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; background: rgba(0,0,0,0.2); }
     .wa-call-header .e2e-tag { display: flex; align-items: center; gap: 6px; color: #00a884; font-weight: 600; }
 
-    /* Grid layout matching WhatsApp Call Tiles */
     .wa-call-grid { flex: 1; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; align-content: center; overflow-y: auto; }
     .wa-call-tile { background: #1f2c34; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 2px solid #2a3942; min-height: 160px; }
     .wa-call-tile.speaking { border-color: #00a884; box-shadow: 0 0 15px rgba(0, 168, 132, 0.3); }
     .wa-tile-name { font-size: 14px; font-weight: 600; color: #e9edef; margin-top: 10px; }
     
-    /* Animated Waveform Icon */
     .waveform { display: flex; align-items: center; gap: 3px; height: 16px; margin-top: 6px; }
     .waveform span { width: 3px; height: 100%; background: #00a884; border-radius: 3px; animation: bounce 0.8s infinite ease-in-out alternate; }
     .waveform span:nth-child(2) { animation-delay: 0.2s; }
     .waveform span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes bounce { 0% { height: 4px; } 100% { height: 16px; } }
 
-    /* WhatsApp Bottom Dock */
     .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a3942; }
     .wa-dock-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: #2a3942; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .wa-dock-btn.active { background: #ea0038; color: #fff; }
     .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; font-size: 24px; }
 
-    /* Standard Modals */
+    /* Modals */
     .modal-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2500; }
     .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
     .modal-card h3 { color: #e9edef; font-size: 18px; text-align: center; }
@@ -99,7 +96,6 @@
 <body>
 
   <div id="app-container">
-    <!-- Header -->
     <div class="header">
       <div class="header-left" onclick="openGroupDetails()">
         <div class="header-info">
@@ -113,10 +109,8 @@
       </div>
     </div>
 
-    <!-- Chat Messages -->
     <div class="chat-box" id="chatBox"></div>
 
-    <!-- Bottom Input Area -->
     <div class="bottom-controls">
       <div class="reply-bar" id="replyBar" style="display:none;">
         <div>
@@ -138,7 +132,6 @@
     </div>
   </div>
 
-  <!-- Fullscreen Image Preview -->
   <div class="image-preview-modal" id="imagePreviewModal" style="display:none;">
     <div class="preview-header">
       <span style="font-size:14px; color:#e9edef; font-weight:600;" id="previewTitle">Photo Preview</span>
@@ -152,7 +145,6 @@
     </div>
   </div>
 
-  <!-- Login Modal -->
   <div class="modal-overlay" id="loginModal">
     <div class="modal-card">
       <h3>Join Chat</h3>
@@ -169,7 +161,6 @@
     </div>
   </div>
 
-  <!-- Group Modal -->
   <div class="modal-overlay" id="groupModal" style="display:none;" onclick="closeGroupDetails()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div style="text-align: center;">
@@ -185,7 +176,6 @@
     </div>
   </div>
 
-  <!-- Admin Panel -->
   <div class="modal-overlay" id="adminModal" style="display:none;">
     <div class="modal-card">
       <h3>Admin Control Panel</h3>
@@ -201,30 +191,13 @@
     </div>
   </div>
 
-  <!-- WhatsApp Voice Call Overlay -->
   <div class="wa-call-screen" id="callScreen" style="display:none;">
     <div class="wa-call-header">
       <div class="e2e-tag">🔒 End-to-End Encrypted</div>
       <div id="callTimer">00:00</div>
     </div>
 
-    <!-- Group Voice Tile Grid -->
-    <div class="wa-call-grid" id="callGrid">
-      <div class="wa-call-tile speaking">
-        <div style="font-size: 32px;">👤</div>
-        <div class="wa-tile-name" id="localCallUser">You</div>
-        <div class="waveform">
-          <span></span><span></span><span></span>
-        </div>
-      </div>
-      <div class="wa-call-tile">
-        <div style="font-size: 32px;">👤</div>
-        <div class="wa-tile-name">Room Peer</div>
-        <div class="waveform">
-          <span></span><span></span><span></span>
-        </div>
-      </div>
-    </div>
+    <div class="wa-call-grid" id="callGrid"></div>
 
     <div class="wa-call-dock">
       <button class="wa-dock-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Speaker">🔊</button>
@@ -253,6 +226,17 @@
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
       localStorage.setItem('chat_device_id', deviceId);
     }
+
+    // Auto-fill stored login credentials
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedUser = localStorage.getItem('chat_saved_user');
+      const savedRole = localStorage.getItem('chat_saved_role');
+      const savedPasskey = localStorage.getItem('chat_saved_passkey');
+
+      if (savedUser) document.getElementById('usernameInput').value = savedUser;
+      if (savedRole) document.getElementById('roleSelect').value = savedRole;
+      if (savedPasskey) document.getElementById('passkeyInput').value = savedPasskey;
+    });
 
     const passInput = document.getElementById('passkeyInput');
     const eyeBtn = document.getElementById('toggleEyeBtn');
@@ -284,6 +268,12 @@
     }
 
     socket.on('auth-success', () => {
+      // Save valid credentials to localStorage for future auto-fill
+      const passkey = document.getElementById('passkeyInput').value.trim();
+      localStorage.setItem('chat_saved_user', currentUser);
+      localStorage.setItem('chat_saved_role', currentRole);
+      localStorage.setItem('chat_saved_passkey', passkey);
+
       document.getElementById('loginModal').style.display = 'none';
       const roleLabel = currentRole === 'admin' ? '👑 ADMIN' : 'Member';
       document.getElementById('userInfoSub').innerText = `${currentUser} (${roleLabel}) • Tap for info`;
@@ -296,6 +286,12 @@
     socket.on('warning-msg', (msg) => alert(msg));
     socket.on('user-banned', (msg) => { alert(msg); location.reload(); });
     socket.on('admin-action-success', (msg) => alert(msg));
+
+    socket.on('banned-user-attempt', (data) => {
+      if (currentRole === 'admin') {
+        alert(`🚨 Banned User Attempt:\nUsername: ${data.username}\nTime: ${data.time}`);
+      }
+    });
 
     socket.on('chat-history', (history) => {
       const chatBox = document.getElementById('chatBox');
@@ -481,9 +477,26 @@
       }
     }
 
-    // Voice Calling Setup
+    function renderCallUserTile(name, isMe, id) {
+      const grid = document.getElementById('callGrid');
+      const tile = document.createElement('div');
+      tile.className = `wa-call-tile ${isMe ? 'speaking' : ''}`;
+      tile.id = `call_tile_${id || name}`;
+      tile.innerHTML = `
+        <div style="font-size: 32px;">👤</div>
+        <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
+        <div class="waveform">
+          <span></span><span></span><span></span>
+        </div>
+      `;
+      grid.appendChild(tile);
+    }
+
     async function startVoiceCall() {
-      document.getElementById('localCallUser').innerText = currentUser || 'You';
+      const grid = document.getElementById('callGrid');
+      grid.innerHTML = '';
+      renderCallUserTile(currentUser || 'You', true, 'local');
+
       document.getElementById('callScreen').style.display = 'flex';
       
       try {
@@ -544,6 +557,9 @@
     }
 
     socket.on('incoming-call', async (data) => {
+      if (!document.getElementById(`call_tile_${data.from}`)) {
+        renderCallUserTile(data.from || 'Peer', false, data.from);
+      }
       if (peerConnection) {
         await peerConnection.addIceCandidate(new RTCIceCandidate(data.signal));
       }
@@ -557,6 +573,7 @@
       if (peerConnection) {
         peerConnection.close();
       }
+      document.getElementById('callGrid').innerHTML = '';
       document.getElementById('callScreen').style.display = 'none';
       socket.emit('end-call', { room: 'main-room' });
     }
@@ -565,11 +582,3 @@
   </script>
 </body>
 </html>
-
-  <script>
-    socket.on('banned-user-attempt', (data) => {
-      if (currentRole === 'admin') {
-        alert(`🚨 Banned User Attempt:\nUsername: ${data.username}\nTime: ${data.time}`);
-      }
-    });
-  </script>
