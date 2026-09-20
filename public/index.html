@@ -21,8 +21,13 @@
     footer { background: #202c33; padding: 10px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; z-index: 10; }
     input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; font-size: 14px; }
     button { background: #00a884; border: none; padding: 10px 14px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .btn-danger { background: #ea0038; color: #fff; }
     .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 9999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
+    .pass-container { position: relative; width: 100%; margin-bottom: 15px; }
+    .pass-container input { width: 100%; padding-right: 40px; }
+    .eye-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #8696a0; cursor: pointer; font-size: 18px; padding: 0; }
+    .banned-list-item { display: flex; justify-content: space-between; align-items: center; background: #111b21; padding: 8px 12px; margin: 5px 0; border-radius: 6px; font-size: 14px; }
     #callScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; z-index: 10000; flex-direction: column; justify-content: space-between; padding: 20px; }
     .call-header { text-align: center; padding-top: 20px; }
     .call-header h4 { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
@@ -77,20 +82,32 @@
     <div class="modal-content">
       <h3 style="margin-bottom:15px;">Join Chat</h3>
       <input type="text" id="usernameInput" placeholder="Enter Username" style="width:100%; margin-bottom: 10px;">
-      <select id="roleSelect" style="width:100%; margin-bottom: 10px;">
+      <select id="roleSelect" onchange="handleRoleChange()" style="width:100%; margin-bottom: 10px;">
         <option value="member">Member</option>
         <option value="admin">Admin</option>
       </select>
-      <input type="password" id="passkeyInput" placeholder="Enter Passkey" style="width:100%; margin-bottom: 15px;">
+      <div class="pass-container">
+        <input type="password" id="passkeyInput" placeholder="Enter Passkey" value="9460">
+        <button type="button" class="eye-btn" onclick="togglePassVisibility()">👁️</button>
+      </div>
       <button onclick="joinChat()" style="width:100%;">Join Room</button>
     </div>
   </div>
 
   <div id="adminModal" class="modal" style="display:none;">
     <div class="modal-content">
-      <h3>Manage Users</h3>
-      <button class="btn-danger" style="width:100%; margin: 10px 0; padding: 8px;" onclick="clearAllMessages()">🗑️ Clear All Messages</button>
-      <button onclick="closeAdminModal()">Close</button>
+      <h3 style="margin-bottom: 10px;">Admin Panel</h3>
+      
+      <div style="margin-bottom:15px;">
+        <input type="text" id="banUserInput" placeholder="Username to Ban" style="width:70%; display:inline-block;">
+        <button class="btn-danger" style="width:28%; padding:11px;" onclick="banUser()">Ban</button>
+      </div>
+
+      <h4 style="margin: 10px 0 5px 0; text-align:left; font-size:14px; color:#8696a0;">Banned Users:</h4>
+      <div id="bannedUsersList" style="max-height: 120px; overflow-y: auto; margin-bottom: 15px;"></div>
+
+      <button class="btn-danger" style="width:100%; margin-bottom: 10px; padding: 10px;" onclick="clearAllMessages()">🗑️ Clear All Messages</button>
+      <button onclick="closeAdminModal()" style="width:100%;">Close</button>
     </div>
   </div>
 
@@ -114,6 +131,25 @@
       ]
     };
 
+    function handleRoleChange() {
+      const role = document.getElementById("roleSelect").value;
+      const passInput = document.getElementById("passkeyInput");
+      if (role === "admin") {
+        passInput.value = "M4nil@l019";
+      } else {
+        passInput.value = "9460";
+      }
+    }
+
+    function togglePassVisibility() {
+      const passInput = document.getElementById("passkeyInput");
+      if (passInput.type === "password") {
+        passInput.type = "text";
+      } else {
+        passInput.type = "password";
+      }
+    }
+
     function joinChat() {
       const name = document.getElementById("usernameInput").value.trim();
       const role = document.getElementById("roleSelect").value;
@@ -135,6 +171,15 @@
     });
 
     socket.on("auth-error", (msg) => alert(msg));
+
+    socket.on("user-banned", (msg) => {
+      alert(msg);
+      window.location.reload();
+    });
+
+    socket.on("abuse-warning", ({ warnings, word }) => {
+      alert(`⚠️ Warning ${warnings}/3: Do not use offensive language ("${word}"). Reaching 3 warnings will result in an automatic ban!`);
+    });
 
     function sendMessage() {
       const input = document.getElementById("msgInput");
@@ -253,6 +298,32 @@
 
     socket.on("all-messages-cleared", () => {
       document.getElementById("chatBox").innerHTML = "";
+    });
+
+    function banUser() {
+      const userToBan = document.getElementById("banUserInput").value.trim();
+      if (!userToBan) return alert("Enter a username!");
+      socket.emit("admin-ban-user", { room: FIXED_ROOM, username: userToBan });
+      document.getElementById("banUserInput").value = "";
+    }
+
+    function unbanUser(username) {
+      socket.emit("admin-unban-user", { room: FIXED_ROOM, username: username });
+    }
+
+    socket.on("update-banned-list", (list) => {
+      const container = document.getElementById("bannedUsersList");
+      container.innerHTML = "";
+      if (list.length === 0) {
+        container.innerHTML = `<div style="font-size:12px; color:#8696a0;">No banned users</div>`;
+        return;
+      }
+      list.forEach(u => {
+        const item = document.createElement("div");
+        item.className = "banned-list-item";
+        item.innerHTML = `<span>${u}</span><button onclick="unbanUser('${u}')" style="padding:4px 8px; font-size:12px;">Unban</button>`;
+        container.appendChild(item);
+      });
     });
 
     async function joinVoiceCall() {
@@ -387,7 +458,10 @@
       });
     }
 
-    function openAdminModal() { document.getElementById("adminModal").style.display = "flex"; }
+    function openAdminModal() { 
+      document.getElementById("adminModal").style.display = "flex"; 
+      socket.emit("get-banned-users");
+    }
     function closeAdminModal() { document.getElementById("adminModal").style.display = "none"; }
   </script>
 </body>
