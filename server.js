@@ -5,7 +5,12 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+
+// Increased maxHttpBufferSize to 100MB for faster/larger file uploads
+const io = new Server(server, { 
+  maxHttpBufferSize: 1e8,
+  cors: { origin: "*" } 
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -17,7 +22,6 @@ const MEMBER_PASSKEY = "9460";
 const bannedUsers = new Set();
 const bannedDevices = new Set();
 const userWarnings = {};
-const deviceWarnings = {};
 const callUsers = {};
 const userDeviceMap = {};
 
@@ -34,7 +38,6 @@ io.on('connection', (socket) => {
   socket.on('join-room', ({ room, user, role, passkey, deviceId }) => {
     const normUser = user.toLowerCase();
 
-    // Check username or device fingerprint ban
     if (bannedUsers.has(normUser) || (deviceId && bannedDevices.has(deviceId))) {
       return socket.emit('auth-error', 'You are banned from joining this room.');
     }
@@ -67,12 +70,10 @@ io.on('connection', (socket) => {
     const username = socket.user;
     const deviceId = socket.deviceId || data.deviceId;
 
-    // Check ban again on every message
     if (bannedUsers.has(username.toLowerCase()) || (deviceId && bannedDevices.has(deviceId))) {
       return socket.emit('user-banned', 'You are banned from sending messages.');
     }
 
-    // Abuse check is only active for MEMBERS (Admins exempt)
     if (socket.role === 'member' && data.payload && data.payload.text && containsAbuse(data.payload.text)) {
       userWarnings[username] = (userWarnings[username] || 0) + 1;
       const count = userWarnings[username];

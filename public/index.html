@@ -19,12 +19,10 @@
     .msg.admin-msg { border: 1px solid #f39c12; box-shadow: 0 0 8px rgba(243, 156, 18, 0.3); }
     .admin-badge { background: linear-gradient(135deg, #f1c40f, #e67e22); color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 5px; display: inline-block; vertical-align: middle; }
 
-    /* Reply preview styling inside messages */
     .reply-quote { background: rgba(0, 0, 0, 0.25); border-left: 4px solid #00a884; border-radius: 4px; padding: 4px 8px; margin-bottom: 6px; font-size: 12px; }
     .reply-quote .reply-author { font-weight: bold; color: #00a884; margin-bottom: 2px; }
     .reply-quote .reply-text { color: #d1d7db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* Active Reply Bar above input */
     #replyBar { display: none; background: #182229; padding: 8px 12px; border-left: 4px solid #00a884; justify-content: space-between; align-items: center; font-size: 13px; }
     #replyBar .reply-info { overflow: hidden; }
     #replyBar .reply-user { font-weight: bold; color: #00a884; }
@@ -49,7 +47,6 @@
     .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 9999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
     
-    /* Image Lightbox Modal */
     #imageModal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.92); z-index: 20000; flex-direction: column; justify-content: space-between; padding: 20px; align-items: center; }
     #imageModal img { max-width: 95%; max-height: 75vh; object-fit: contain; border-radius: 8px; border: 1px solid #2a3942; }
     .img-modal-tools { display: flex; gap: 15px; margin-top: 15px; }
@@ -89,6 +86,16 @@
   <div id="audioContainer"></div>
 
   <footer>
+    <div id="uploadProgressContainer" style="display:none; margin-bottom:8px; background:#111b21; padding:8px 12px; border-radius:6px; border:1px solid #2a3942;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#8696a0; margin-bottom:4px;">
+        <span id="uploadStatusText">Uploading...</span>
+        <span id="uploadPercentText">0%</span>
+      </div>
+      <div style="width:100%; background:#2a3942; height:6px; border-radius:3px; overflow:hidden;">
+        <div id="uploadProgressBar" style="width:0%; height:100%; background:#00a884; transition:width 0.1s linear;"></div>
+      </div>
+    </div>
+
     <div id="replyBar">
       <div class="reply-info">
         Replying to <span class="reply-user" id="replyUserTarget"></span>:
@@ -105,7 +112,6 @@
     </div>
   </footer>
 
-  <!-- Image View Modal -->
   <div id="imageModal">
     <div style="width:100%; display:flex; justify-content:flex-end;">
       <button onclick="closeImageModal()" style="background:#2a3942; color:#fff; border-radius:50%; width:36px; height:36px; padding:0;">✕</button>
@@ -296,29 +302,109 @@
       const file = input.files[0];
       if (!file) return;
 
-      const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const payload = { 
-          sender: currentUser, 
-          fileData: e.target.result, 
-          fileName: file.name,
-          fileType: file.type 
-        };
-        if (activeReplyTarget) {
-          payload.replyTo = activeReplyTarget;
-        }
+      const pContainer = document.getElementById("uploadProgressContainer");
+      const pBar = document.getElementById("uploadProgressBar");
+      const pPercent = document.getElementById("uploadPercentText");
+      const pStatus = document.getElementById("uploadStatusText");
 
-        socket.emit("chat-message", {
-          room: FIXED_ROOM,
-          id: msgId,
-          type: "file",
-          payload: payload,
-          deviceId: getDeviceId()
-        });
-        clearReplyTarget();
-      };
-      reader.readAsDataURL(file);
+      pContainer.style.display = "block";
+      pBar.style.width = "0%";
+      pPercent.textContent = "0%";
+      pStatus.textContent = `Uploading ${file.name}...`;
+
+      const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+
+      if (file.type.startsWith("image/")) {
+        const img = new Image();
+        const reader = new FileReader();
+
+        reader.onprogress = function(e) {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            pBar.style.width = percent + "%";
+            pPercent.textContent = percent + "%";
+          }
+        };
+
+        reader.onload = function(e) {
+          img.src = e.target.result;
+          img.onload = function() {
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+            const maxDimension = 1200;
+
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedData = canvas.toDataURL("image/jpeg", 0.7);
+
+            const payload = { 
+              sender: currentUser, 
+              fileData: compressedData, 
+              fileName: file.name,
+              fileType: "image/jpeg" 
+            };
+            if (activeReplyTarget) payload.replyTo = activeReplyTarget;
+
+            socket.emit("chat-message", {
+              room: FIXED_ROOM,
+              id: msgId,
+              type: "file",
+              payload: payload,
+              deviceId: getDeviceId()
+            });
+
+            setTimeout(() => { pContainer.style.display = "none"; }, 500);
+            clearReplyTarget();
+          };
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onprogress = function(e) {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            pBar.style.width = percent + "%";
+            pPercent.textContent = percent + "%";
+          }
+        };
+
+        reader.onload = function(e) {
+          const payload = { 
+            sender: currentUser, 
+            fileData: e.target.result, 
+            fileName: file.name,
+            fileType: file.type 
+          };
+          if (activeReplyTarget) payload.replyTo = activeReplyTarget;
+
+          socket.emit("chat-message", {
+            room: FIXED_ROOM,
+            id: msgId,
+            type: "file",
+            payload: payload,
+            deviceId: getDeviceId()
+          });
+
+          setTimeout(() => { pContainer.style.display = "none"; }, 500);
+          clearReplyTarget();
+        };
+        reader.readAsDataURL(file);
+      }
+
       input.value = "";
     }
 
