@@ -5,28 +5,36 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const rooms = {};
+// Configure Passkeys
+const ADMIN_PASSKEY = "1234";
+const MEMBER_PASSKEY = "1234";
+
 const callUsers = {};
 
 io.on('connection', (socket) => {
-  socket.on('join-room', ({ room, user, role, passkey, deviceId }) => {
+
+  socket.on('join-room', ({ room, user, role, passkey }) => {
+    // Check passkeys
+    if (role === 'admin' && passkey !== ADMIN_PASSKEY) {
+      return socket.emit('auth-error', 'Incorrect Admin Passkey!');
+    }
+    if (role === 'member' && passkey !== MEMBER_PASSKEY) {
+      return socket.emit('auth-error', 'Incorrect Member Passkey!');
+    }
+
     socket.join(room);
     socket.room = room;
     socket.user = user;
-
-    if (!rooms[room]) rooms[room] = { users: {} };
-    rooms[room].users[socket.id] = { id: socket.id, username: user, role: role };
+    socket.role = role;
 
     socket.emit('auth-success');
     io.to(room).emit('chat-message', {
       type: 'system',
-      payload: { text: `${user} joined the chat.` }
+      payload: { text: `${user} joined as ${role}.` }
     });
   });
 
@@ -74,11 +82,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const room = socket.room;
-    if (room) {
-      if (callUsers[room]) {
-        callUsers[room] = callUsers[room].filter(u => u !== socket.user);
-        io.to(room).emit('update-call-users', callUsers[room]);
-      }
+    if (room && callUsers[room]) {
+      callUsers[room] = callUsers[room].filter(u => u !== socket.user);
+      io.to(room).emit('update-call-users', callUsers[room]);
       socket.to(room).emit('user-left-call', { socketId: socket.id });
     }
   });
@@ -86,5 +92,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
