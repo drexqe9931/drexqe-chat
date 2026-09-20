@@ -127,10 +127,7 @@
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' }
       ]
     };
 
@@ -189,31 +186,16 @@
     }
 
     if (socket) {
-      socket.on("connect", () => {
-        const savedUser = localStorage.getItem("drexqe_user");
-        const savedPasskey = localStorage.getItem("drexqe_passkey");
-        if (savedUser && savedPasskey) {
-          socket.emit("join-room", {
-            room: FIXED_ROOM,
-            user: savedUser,
-            role: localStorage.getItem("drexqe_role") || "member",
-            passkey: savedPasskey,
-            deviceId: deviceId
-          });
+      socket.on("auth-success", () => {
+        document.getElementById("loginModal").style.display = "none";
+        if (userRole === "admin") {
+          document.getElementById("adminBtn").style.display = "inline-block";
+        } else {
+          document.getElementById("adminBtn").style.display = "none";
         }
       });
 
-      socket.on("auth-success", () => {
-        document.getElementById("loginModal").style.display = "none";
-        if (userRole === "admin") document.getElementById("adminBtn").style.display = "inline-block";
-      });
-
       socket.on("auth-error", (msg) => alert(msg));
-      socket.on("pending-approval-notice", (msg) => alert(msg));
-      socket.on("approval-granted", () => {
-        alert("✅ Request approved by Admin!");
-        document.getElementById("loginModal").style.display = "none";
-      });
     }
 
     function sendMessage() {
@@ -524,89 +506,6 @@
         grid.appendChild(card);
       });
     }
-
-    if (socket) {
-      socket.on("warning-notice", (msg) => alert(msg));
-      socket.on("banned-notice", (msg) => { alert(msg); window.location.reload(); });
-      socket.on("kicked-notice", () => { alert("You were kicked!"); window.location.reload(); });
-
-      socket.on("admin-join-request", ({ username }) => {
-        if (userRole === "admin") {
-          alert(`🔒 Banned user "${username}" is attempting to join. Open Admin Panel to approve.`);
-        }
-      });
-
-      socket.on("update-user-list", ({ users, banned, requests }) => {
-        const container = document.getElementById("userListContainer");
-        if (!container) return;
-        container.innerHTML = "";
-
-        const uTitle = document.createElement("h4");
-        uTitle.textContent = "Online Users";
-        container.appendChild(uTitle);
-
-        users.forEach(u => {
-          const row = document.createElement("div");
-          row.className = "user-row";
-          let controls = "";
-          if (userRole === 'admin' && u.username !== currentUser) {
-            controls = `
-              <div>
-                <button class="btn-warn" onclick="kickUser('${u.id}')">Kick</button>
-                <button class="btn-danger" onclick="banUser('${u.username}', '${u.id}')">Ban</button>
-              </div>
-            `;
-          }
-          row.innerHTML = `<span>${u.username} (${u.role})</span>${controls}`;
-          container.appendChild(row);
-        });
-
-        if (userRole === 'admin' && requests && requests.length > 0) {
-          const rTitle = document.createElement("h4");
-          rTitle.style.color = "#f39c12";
-          rTitle.style.marginTop = "10px";
-          rTitle.textContent = "Unban Requests";
-          container.appendChild(rTitle);
-
-          requests.forEach(r => {
-            const rRow = document.createElement("div");
-            rRow.className = "user-row";
-            rRow.innerHTML = `
-              <span>${r.username}</span>
-              <div>
-                <button class="btn-warn" style="background:#00a884; color:#111b21;" onclick="approveJoin('${r.socketId}')">Approve</button>
-                <button class="btn-danger" onclick="denyJoin('${r.socketId}')">Deny</button>
-              </div>
-            `;
-            container.appendChild(rRow);
-          });
-        }
-
-        if (userRole === 'admin' && banned && banned.length > 0) {
-          const bTitle = document.createElement("h4");
-          bTitle.style.color = "#ea0038";
-          bTitle.style.marginTop = "10px";
-          bTitle.textContent = "Banned Users";
-          container.appendChild(bTitle);
-
-          banned.forEach(bUser => {
-            const bRow = document.createElement("div");
-            bRow.className = "user-row";
-            bRow.innerHTML = `
-              <span>${bUser}</span>
-              <button class="btn-warn" style="background:#00a884; color:#111b21;" onclick="unbanUser('${bUser}')">Unban</button>
-            `;
-            container.appendChild(bRow);
-          });
-        }
-      });
-    }
-
-    function kickUser(id) { if (socket) socket.emit("admin-kick-user", { targetSocketId: id }); }
-    function banUser(username, id) { if (confirm(`Ban ${username}?`) && socket) socket.emit("admin-ban-user", { username, targetSocketId: id }); }
-    function unbanUser(username) { if (confirm(`Unban ${username}?`) && socket) socket.emit("admin-unban-user", { username }); }
-    function approveJoin(id) { if (socket) socket.emit("admin-approve-join", { targetSocketId: id }); }
-    function denyJoin(id) { if (socket) socket.emit("admin-deny-join", { targetSocketId: id }); }
 
     function openAdminModal() { document.getElementById("adminModal").style.display = "flex"; }
     function closeAdminModal() { document.getElementById("adminModal").style.display = "none"; }
