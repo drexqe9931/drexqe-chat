@@ -9,9 +9,9 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Configure Passkeys
-const ADMIN_PASSKEY = "1234";
-const MEMBER_PASSKEY = "1234";
+// Passkeys
+const ADMIN_PASSKEY = "M4nil@l019";
+const MEMBER_PASSKEY = "9460";
 
 const callUsers = {};
 
