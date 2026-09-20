@@ -130,11 +130,7 @@
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        { urls: 'turn:global.turn.twilio.com:3478?transport=udp', username: 'guest', credential: 'guest' },
-        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        { urls: 'stun:stun4.l.google.com:19302' }
       ]
     };
 
@@ -225,7 +221,9 @@
       const text = input.value.trim();
       if (!text) return;
 
-      if (socket) socket.emit("chat-message", { room: FIXED_ROOM, payload: { sender: currentUser, text: text } });
+      const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+
+      if (socket) socket.emit("chat-message", { room: FIXED_ROOM, id: msgId, payload: { sender: currentUser, text: text } });
       input.value = "";
     }
 
@@ -233,11 +231,13 @@
       const file = input.files[0];
       if (!file) return;
 
+      const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
       const reader = new FileReader();
       reader.onload = function(e) {
         if (socket) {
           socket.emit("chat-message", {
             room: FIXED_ROOM,
+            id: msgId,
             type: file.type.startsWith("video/") ? "video" : "image",
             payload: { sender: currentUser, media: e.target.result }
           });
@@ -262,9 +262,11 @@
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = () => {
+              const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
               if (socket) {
                 socket.emit("chat-message", { 
                   room: FIXED_ROOM, 
+                  id: msgId,
                   type: "voice",
                   payload: { sender: currentUser, audio: reader.result } 
                 });
@@ -287,10 +289,11 @@
         const box = document.getElementById("chatBox");
         if (!box) return;
 
-        if (document.getElementById(data.id)) return;
+        const msgId = data.id || "msg_" + Date.now();
+        if (document.getElementById(msgId)) return;
 
         const div = document.createElement("div");
-        div.id = data.id || "msg_" + Math.random().toString(36).substring(2, 9);
+        div.id = msgId;
 
         if (data.type === "system") {
           div.className = "msg system";
@@ -300,7 +303,7 @@
           div.className = "msg " + (isMe ? "me" : "other");
 
           const canDelete = isMe || userRole === "admin";
-          const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${div.id}', '${data.payload.sender}')">🗑️</button>` : '';
+          const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${msgId}', '${data.payload.sender}')">🗑️</button>` : '';
 
           const headerHtml = `
             <div class="msg-header">
@@ -327,7 +330,7 @@
 
     function deleteMessage(msgId, sender) {
       if (confirm("Delete this message for everyone?")) {
-        if (socket) socket.emit("delete-message", { msgId, sender });
+        if (socket) socket.emit("delete-message", { room: FIXED_ROOM, msgId: msgId, sender: sender });
       }
     }
 
@@ -340,7 +343,7 @@
 
     function clearAllMessages() {
       if (confirm("Clear all messages for everyone in the chat?")) {
-        if (socket) socket.emit("admin-clear-all-messages");
+        if (socket) socket.emit("admin-clear-all-messages", { room: FIXED_ROOM });
       }
     }
 
@@ -358,7 +361,7 @@
           activeCallUsersList.push(currentUser);
         }
         renderCallGrid();
-        if (socket) socket.emit("voice-join");
+        if (socket) socket.emit("voice-join", { room: FIXED_ROOM, user: currentUser });
       } catch (err) {
         alert("Microphone permission check failed: " + err.message);
       }
@@ -489,7 +492,7 @@
       });
       document.getElementById("audioContainer").innerHTML = "";
       document.getElementById("callScreen").style.display = "none";
-      if (socket) socket.emit("voice-leave");
+      if (socket) socket.emit("voice-leave", { room: FIXED_ROOM });
     }
 
     if (socket) {
