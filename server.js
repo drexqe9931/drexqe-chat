@@ -5,8 +5,10 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
+// Increased payload limit to 100MB
 const io = new Server(server, {
-  maxHttpBufferSize: 1e7
+  maxHttpBufferSize: 1e8
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
