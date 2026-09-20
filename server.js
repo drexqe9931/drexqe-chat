@@ -15,9 +15,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 const chatHistory = [];
 const bannedUsers = new Set();
 const bannedDevices = new Set();
+const userWarnings = new Map(); // Track warning counts per user
 const roomPasskeys = { 'main-room': '1234' };
 
-// Abusive words list (case-insensitive check)
+// Abusive words list
 const badWordsList = [
   'mc', 'bc', 'madarchod', 'bhenchod', 'gand', 'gandu',
   'chutiya', 'bsdk', 'bhosdike', 'harami', 'lauda', 'lodu'
@@ -25,23 +26,19 @@ const badWordsList = [
 
 function containsBadWords(text) {
   if (!text || typeof text !== 'string') return false;
-  // Normalize text: remove extra spaces and punctuation
   const cleanText = text.toLowerCase().replace(/[^a-z0-9\s]/gi, '');
   const words = cleanText.split(/\s+/);
   
   return badWordsList.some(badWord => {
-    // Check if any word matches or if the entire text contains the bad phrase
     return words.includes(badWord) || cleanText.includes(badWord);
   });
 }
 
 io.on('connection', (socket) => {
   socket.on('join-room', ({ room, user, role, passkey, deviceId }) => {
-    // Check if user or device is banned
     if (bannedUsers.has(user) || bannedDevices.has(deviceId)) {
       socket.emit('auth-error', 'You are banned from this chat room.');
       
-      // Notify admins about the join attempt
       io.to(room).emit('banned-user-attempt', {
         username: user,
         deviceId: deviceId,
@@ -81,25 +78,35 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Check for abusive words in text messages
-    if (type === 'text' && containsBadWords(payload.text)) {
-      // Auto-ban user
-      bannedUsers.add(socket.username);
-      if (deviceId) bannedDevices.add(deviceId);
+    // Abusive words filter - ONLY FOR MEMBERS (Admins exempted)
+    if (socket.role !== 'admin' && type === 'text' && containsBadWords(payload.text)) {
+      let warnings = userWarnings.get(socket.username) || 0;
+      warnings += 1;
+      userWarnings.set(socket.username, warnings);
 
-      socket.emit('user-banned', 'You have been automatically banned for using abusive language.');
-      
-      // Notify system & admins
-      const banNotice = {
-        id: 'sys_' + Date.now(),
-        type: 'system',
-        payload: { text: `🚨 ${socket.username} was automatically banned for abusive language.` }
-      };
-      chatHistory.push(banNotice);
-      io.to(room).emit('chat-message', banNotice);
+      if (warnings < 3) {
+        // Send Warning 1 or 2
+        socket.emit('warning-msg', `⚠️ Warning (${warnings}/2): Abusive language is not allowed! Reaching 3 warnings will result in an automatic ban.`);
+        return;
+      } else {
+        // 3rd violation -> Ban member
+        bannedUsers.add(socket.username);
+        if (deviceId) bannedDevices.add(deviceId);
+        userWarnings.delete(socket.username);
 
-      socket.disconnect();
-      return;
+        socket.emit('user-banned', 'You have been automatically banned after 3 warnings for using abusive language.');
+        
+        const banNotice = {
+          id: 'sys_' + Date.now(),
+          type: 'system',
+          payload: { text: `🚨 ${socket.username} was automatically banned after 3 abusive language warnings.` }
+        };
+        chatHistory.push(banNotice);
+        io.to(room).emit('chat-message', banNotice);
+
+        socket.disconnect();
+        return;
+      }
     }
 
     const msg = {
@@ -144,6 +151,7 @@ io.on('connection', (socket) => {
   socket.on('admin-unban-user', ({ room, username }) => {
     if (socket.role === 'admin') {
       bannedUsers.delete(username);
+      userWarnings.delete(username);
       bannedDevices.clear();
       socket.emit('admin-action-success', `User ${username} unbanned successfully.`);
     }
