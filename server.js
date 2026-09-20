@@ -6,22 +6,19 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  maxHttpBufferSize: 1e7 // 10MB limit
+  maxHttpBufferSize: 1e7
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory state tracking
 const chatHistory = [];
 const bannedUsers = new Set();
 const bannedDevices = new Set();
 const userWarnings = new Map();
 
-// Passkeys by Role
 const MEMBER_PASSKEY = '9460';
 const ADMIN_PASSKEY = 'M4nil@l019';
 
-// Abusive words list
 const badWordsList = [
   'mc', 'bc', 'madarchod', 'bhenchod', 'gand', 'gandu',
   'chutiya', 'bsdk', 'bhosdike', 'harami', 'lauda', 'lodu'
@@ -31,17 +28,13 @@ function containsBadWords(text) {
   if (!text || typeof text !== 'string') return false;
   const cleanText = text.toLowerCase().replace(/[^a-z0-9\s]/gi, '');
   const words = cleanText.split(/\s+/);
-  
-  return badWordsList.some(badWord => {
-    return words.includes(badWord) || cleanText.includes(badWord);
-  });
+  return badWordsList.some(badWord => words.includes(badWord) || cleanText.includes(badWord));
 }
 
 io.on('connection', (socket) => {
   socket.on('join-room', ({ room, user, role, passkey, deviceId }) => {
     if (bannedUsers.has(user) || bannedDevices.has(deviceId)) {
       socket.emit('auth-error', 'You are banned from this chat room.');
-      
       io.to(room).emit('banned-user-attempt', {
         username: user,
         deviceId: deviceId,
@@ -50,7 +43,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Role-specific passkey check
     if (role === 'admin') {
       if (passkey !== ADMIN_PASSKEY) {
         socket.emit('auth-error', 'Incorrect Admin passkey.');
@@ -89,7 +81,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Abusive words filter - ONLY FOR MEMBERS (Admins exempted)
     if (socket.role !== 'admin' && type === 'text' && containsBadWords(payload.text)) {
       let warnings = userWarnings.get(socket.username) || 0;
       warnings += 1;
@@ -166,16 +157,23 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('call-user', (data) => {
-    socket.to(data.room).emit('incoming-call', data);
+  // --- Voice Call WebRTC Signaling ---
+  socket.on('webrtc-offer', (data) => {
+    socket.to(data.room).emit('webrtc-offer', { offer: data.offer, from: socket.username });
+  });
+
+  socket.on('webrtc-answer', (data) => {
+    socket.to(data.room).emit('webrtc-answer', { answer: data.answer, from: socket.username });
+  });
+
+  socket.on('webrtc-ice', (data) => {
+    socket.to(data.room).emit('webrtc-ice', { candidate: data.candidate, from: socket.username });
   });
 
   socket.on('end-call', (data) => {
-    socket.to(data.room).emit('call-ended');
+    socket.to(data.room).emit('call-ended', { from: socket.username });
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

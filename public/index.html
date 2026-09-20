@@ -11,7 +11,6 @@
     
     #app-container { display: flex; flex-direction: column; height: 100%; height: 100dvh; width: 100vw; position: relative; }
 
-    /* Header */
     .header { background: #202c33; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; min-height: 60px; border-bottom: 1px solid #2a3942; z-index: 10; flex-shrink: 0; }
     .header-left { display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
     .header-info h2 { font-size: 16px; color: #e9edef; font-weight: 600; display: flex; align-items: center; gap: 6px; }
@@ -20,7 +19,6 @@
     .btn { background: #00a884; color: #111b21; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .btn-danger { background: #ea0038; color: #fff; }
 
-    /* Chat Messages Box */
     .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: #0b141a; }
     .msg-row { display: flex; margin-bottom: 2px; }
     .msg-row.me { justify-content: flex-end; }
@@ -31,7 +29,6 @@
     .msg.other { background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
     .msg.me { background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
     
-    /* Crown Admin Styling */
     .msg.admin-msg { border: 1px solid #f39c12; box-shadow: 0 0 10px rgba(243, 156, 18, 0.25); }
     .admin-crown-badge { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
@@ -39,7 +36,6 @@
     .msg-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; color: #8696a0; }
     .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.7; color: #8696a0; }
 
-    /* Media Cards */
     .reply-quote { background: rgba(0,0,0,0.25); border-left: 3px solid #00a884; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
     .reply-author { color: #00a884; font-weight: bold; font-size: 11px; }
     .reply-text { color: #d1d7db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
@@ -50,20 +46,18 @@
     .file-card { background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .download-link { color: #53bdeb; text-decoration: none; font-size: 12px; font-weight: bold; }
 
-    /* Bottom Input Bar */
     .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
     .reply-bar { background: #182229; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; font-size: 12px; }
     .input-bar { padding: 8px 12px; display: flex; align-items: center; gap: 8px; min-height: 56px; }
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; display: flex; align-items: center; justify-content: center; }
 
-    /* Fullscreen Image Preview */
     .image-preview-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: space-between; z-index: 3000; }
     .preview-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); }
     .preview-body { flex: 1; display: flex; justify-content: center; align-items: center; padding: 12px; }
     .preview-body img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; }
 
-    /* WhatsApp Voice Call Overlay */
+    /* Voice Call Overlay */
     .wa-call-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; }
     .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; background: rgba(0,0,0,0.2); }
     .wa-call-header .e2e-tag { display: flex; align-items: center; gap: 6px; color: #00a884; font-weight: 600; }
@@ -82,9 +76,10 @@
     .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #2a3942; }
     .wa-dock-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: #2a3942; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .wa-dock-btn.active { background: #ea0038; color: #fff; }
-    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; font-size: 24px; }
+    
+    /* Downward facing Hang-up Icon */
+    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; font-size: 24px; transform: rotate(135deg); }
 
-    /* Modals */
     .modal-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2500; }
     .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
     .modal-card h3 { color: #e9edef; font-size: 18px; text-align: center; }
@@ -170,7 +165,7 @@
       <hr style="border:0; border-top:1px solid #3b4a54;">
       <div>
         <h4 style="font-size:13px; color:#00a884; margin-bottom:4px;">Group Description</h4>
-        <p style="font-size:12px; color:#d1d7db; line-height:1.4;">Welcome to the Drexqe Group! A secure end-to-end encrypted messaging space for group interactions, voice calling, file sharing, and auto-moderated chats.</p>
+        <p style="font-size:12px; color:#d1d7db; line-height:1.4;">Welcome to the Drexqe Group!</p>
       </div>
       <button class="btn" onclick="closeGroupDetails()">Close</button>
     </div>
@@ -227,7 +222,6 @@
       localStorage.setItem('chat_device_id', deviceId);
     }
 
-    // Auto-fill stored login credentials
     window.addEventListener('DOMContentLoaded', () => {
       const savedUser = localStorage.getItem('chat_saved_user');
       const savedRole = localStorage.getItem('chat_saved_role');
@@ -268,7 +262,6 @@
     }
 
     socket.on('auth-success', () => {
-      // Save valid credentials to localStorage for future auto-fill
       const passkey = document.getElementById('passkeyInput').value.trim();
       localStorage.setItem('chat_saved_user', currentUser);
       localStorage.setItem('chat_saved_role', currentRole);
@@ -362,22 +355,6 @@
         `;
 
         chatBox.appendChild(row);
-
-        const msgBubble = document.getElementById(`bubble_${msg.id}`);
-        let lastTap = 0;
-        msgBubble.addEventListener('touchend', (e) => {
-          const currentTime = new Date().getTime();
-          const tapLength = currentTime - lastTap;
-          if (tapLength < 300 && tapLength > 0) {
-            setReply(msg.payload.user, msg.payload.text || 'Media');
-            e.preventDefault();
-          }
-          lastTap = currentTime;
-        });
-
-        msgBubble.addEventListener('dblclick', () => {
-          setReply(msg.payload.user, msg.payload.text || 'Media');
-        });
       }
       chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -479,9 +456,13 @@
 
     function renderCallUserTile(name, isMe, id) {
       const grid = document.getElementById('callGrid');
-      const tile = document.createElement('div');
-      tile.className = `wa-call-tile ${isMe ? 'speaking' : ''}`;
-      tile.id = `call_tile_${id || name}`;
+      let tile = document.getElementById(`call_tile_${id || name}`);
+      if (!tile) {
+        tile = document.createElement('div');
+        tile.className = `wa-call-tile ${isMe ? 'speaking' : ''}`;
+        tile.id = `call_tile_${id || name}`;
+        grid.appendChild(tile);
+      }
       tile.innerHTML = `
         <div style="font-size: 32px;">👤</div>
         <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
@@ -489,7 +470,29 @@
           <span></span><span></span><span></span>
         </div>
       `;
-      grid.appendChild(tile);
+    }
+
+    // --- WebRTC Implementation ---
+    function setupPeerConnection() {
+      peerConnection = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      }
+
+      peerConnection.ontrack = (event) => {
+        const remoteAudio = document.getElementById('remoteAudio');
+        remoteAudio.srcObject = event.streams[0];
+        startCallTimer();
+      };
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('webrtc-ice', { room: 'main-room', candidate: event.candidate });
+        }
+      };
     }
 
     async function startVoiceCall() {
@@ -501,27 +504,52 @@
       
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        peerConnection = new RTCPeerConnection({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-        });
+        setupPeerConnection();
 
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('webrtc-offer', { room: 'main-room', offer: offer });
 
-        peerConnection.ontrack = (event) => {
-          document.getElementById('remoteAudio').srcObject = event.streams[0];
-          startCallTimer();
-        };
-
-        peerConnection.onicecandidate = (event) => {
-          if (event.candidate) {
-            socket.emit('call-user', { room: 'main-room', signalData: event.candidate, from: currentUser });
-          }
-        };
       } catch (err) {
-        alert('Could not access microphone: ' + err.message);
+        alert('Microphone access denied or error: ' + err.message);
         leaveVoiceCall();
       }
     }
+
+    socket.on('webrtc-offer', async (data) => {
+      document.getElementById('callScreen').style.display = 'flex';
+      renderCallUserTile(data.from, false, data.from);
+
+      if (!localStream) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          renderCallUserTile(currentUser || 'You', true, 'local');
+        } catch (err) {
+          alert('Microphone access required to accept call');
+        }
+      }
+
+      if (!peerConnection) setupPeerConnection();
+
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      socket.emit('webrtc-answer', { room: 'main-room', answer: answer });
+    });
+
+    socket.on('webrtc-answer', async (data) => {
+      renderCallUserTile(data.from, false, data.from);
+      if (peerConnection) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+      }
+    });
+
+    socket.on('webrtc-ice', async (data) => {
+      if (peerConnection) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    });
 
     function startCallTimer() {
       callSeconds = 0;
@@ -534,15 +562,31 @@
       }, 1000);
     }
 
-    function toggleMute() {
-      if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) {
-          isMuted = !isMuted;
-          audioTrack.enabled = !isMuted;
-          const btn = document.getElementById('muteBtn');
-          btn.innerText = isMuted ? '🔇' : '🎤';
-          btn.classList.toggle('active', isMuted);
+    // Toggle mute: Stops active hardware track to disable mobile green dot indicator
+    async function toggleMute() {
+      const btn = document.getElementById('muteBtn');
+      if (!isMuted) {
+        if (localStream) {
+          localStream.getAudioTracks().forEach(track => track.stop());
+        }
+        isMuted = true;
+        btn.innerText = '🔇';
+        btn.classList.add('active');
+      } else {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if (peerConnection) {
+            const senders = peerConnection.getSenders();
+            const audioSender = senders.find(sender => sender.track && sender.track.kind === 'audio');
+            if (audioSender) {
+              audioSender.replaceTrack(localStream.getAudioTracks()[0]);
+            }
+          }
+          isMuted = false;
+          btn.innerText = '🎤';
+          btn.classList.remove('active');
+        } catch (e) {
+          alert("Failed to turn microphone back on.");
         }
       }
     }
@@ -556,22 +600,15 @@
       btn.classList.toggle('active', !isSpeakerOn);
     }
 
-    socket.on('incoming-call', async (data) => {
-      if (!document.getElementById(`call_tile_${data.from}`)) {
-        renderCallUserTile(data.from || 'Peer', false, data.from);
-      }
-      if (peerConnection) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.signal));
-      }
-    });
-
     function leaveVoiceCall() {
       clearInterval(callTimerInterval);
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
       }
       if (peerConnection) {
         peerConnection.close();
+        peerConnection = null;
       }
       document.getElementById('callGrid').innerHTML = '';
       document.getElementById('callScreen').style.display = 'none';
