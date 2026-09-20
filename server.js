@@ -15,8 +15,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 const chatHistory = [];
 const bannedUsers = new Set();
 const bannedDevices = new Set();
-const userWarnings = new Map(); // Track warning counts per user
-const roomPasskeys = { 'main-room': '1234' };
+const userWarnings = new Map();
+
+// Passkeys by Role
+const MEMBER_PASSKEY = '9460';
+const ADMIN_PASSKEY = 'M4nil@l019';
 
 // Abusive words list
 const badWordsList = [
@@ -47,9 +50,17 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (passkey !== roomPasskeys[room]) {
-      socket.emit('auth-error', 'Incorrect passkey.');
-      return;
+    // Role-specific passkey check
+    if (role === 'admin') {
+      if (passkey !== ADMIN_PASSKEY) {
+        socket.emit('auth-error', 'Incorrect Admin passkey.');
+        return;
+      }
+    } else {
+      if (passkey !== MEMBER_PASSKEY) {
+        socket.emit('auth-error', 'Incorrect Member passkey.');
+        return;
+      }
     }
 
     socket.join(room);
@@ -85,11 +96,9 @@ io.on('connection', (socket) => {
       userWarnings.set(socket.username, warnings);
 
       if (warnings < 3) {
-        // Send Warning 1 or 2
         socket.emit('warning-msg', `⚠️ Warning (${warnings}/2): Abusive language is not allowed! Reaching 3 warnings will result in an automatic ban.`);
         return;
       } else {
-        // 3rd violation -> Ban member
         bannedUsers.add(socket.username);
         if (deviceId) bannedDevices.add(deviceId);
         userWarnings.delete(socket.username);
