@@ -21,7 +21,7 @@
     .btn { background: #00a884; color: #111b21; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .btn-danger { background: #ea0038; color: #fff; }
 
-    /* Messages Area */
+    /* Chat Messages Box */
     .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0b141a; }
     .msg-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
     .msg-row.me { flex-direction: row-reverse; }
@@ -40,36 +40,55 @@
     .admin-badge { background: #f39c12; color: #000; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
     .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.7; color: #8696a0; }
 
-    /* Reply Snippet & Media */
+    /* Reply Snippet & Image / File Media Cards */
     .reply-quote { background: rgba(0,0,0,0.25); border-left: 3px solid #00a884; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
     .reply-author { color: #00a884; font-weight: bold; font-size: 11px; }
     .reply-text { color: #d1d7db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     
-    .chat-image { max-width: 100%; max-height: 250px; border-radius: 8px; margin-top: 4px; cursor: pointer; display: block; }
-    .file-card { background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .media-container { position: relative; display: inline-block; margin-top: 4px; }
+    .chat-image { max-width: 100%; max-height: 250px; border-radius: 8px; cursor: pointer; display: block; object-fit: cover; }
+    .img-download-btn { position: absolute; bottom: 8px; right: 8px; background: rgba(11, 20, 26, 0.75); color: #fff; padding: 6px 10px; border-radius: 20px; font-size: 11px; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,0.2); }
+
+    .file-card { background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .download-link { color: #53bdeb; text-decoration: none; font-size: 12px; font-weight: bold; }
 
-    /* Fixed Bottom Input Bar */
+    /* Bottom Input Bar */
     .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
     .reply-bar { background: #182229; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; font-size: 12px; }
     .input-bar { padding: 8px 12px; display: flex; align-items: center; gap: 8px; min-height: 56px; }
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; display: flex; align-items: center; justify-content: center; }
 
-    /* Modals & Overlays */
+    /* Image Fullscreen Preview Modal */
+    .image-preview-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; }
+    .preview-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); }
+    .preview-body { flex: 1; display: flex; justify-content: center; align-items: center; padding: 12px; }
+    .preview-body img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+
+    /* WhatsApp Style Voice Call Screen Overlay */
+    .wa-call-screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: 100dvh; background: #0b141a; display: flex; flex-direction: column; justify-content: space-between; z-index: 1500; }
+    .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; }
+    .wa-call-header .e2e-tag { display: flex; align-items: center; gap: 6px; color: #00a884; font-weight: 500; }
+    
+    .wa-call-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+    .wa-avatar-ring { width: 140px; height: 140px; border-radius: 50%; background: #1f2c34; display: flex; align-items: center; justify-content: center; border: 3px solid #00a884; margin-bottom: 20px; box-shadow: 0 0 25px rgba(0,168,132,0.2); }
+    .wa-avatar-img { width: 130px; height: 130px; border-radius: 50%; object-fit: cover; }
+    .wa-call-title { font-size: 22px; font-weight: 600; color: #e9edef; margin-bottom: 6px; }
+    .wa-call-timer { font-size: 14px; color: #8696a0; }
+
+    /* WhatsApp Call Controls Dock Bar */
+    .wa-call-dock { background: #111b21; padding: 20px 24px calc(24px + env(safe-area-inset-bottom)); border-top-left-radius: 24px; border-top-right-radius: 24px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); }
+    .wa-dock-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: #202c33; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
+    .wa-dock-btn.active { background: #3b4a54; color: #ea0038; }
+    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; }
+
+    /* Standard Modals */
     .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
     .modal-card h3 { color: #e9edef; font-size: 18px; text-align: center; }
     .modal-card input, .modal-card select { background: #2a3942; border: 1px solid #3b4a54; padding: 10px; border-radius: 8px; color: #e9edef; outline: none; font-size: 14px; width: 100%; }
     .pass-field-wrap { position: relative; width: 100%; display: flex; align-items: center; }
     .pass-field-wrap span { position: absolute; right: 12px; cursor: pointer; font-size: 18px; user-select: none; }
-
-    /* Voice Call Banner & Full Call Controls */
-    .call-screen { position: fixed; top:0; left:0; right:0; bottom:0; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 900; }
-    .call-grid { flex: 1; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
-    .call-controls { background: #202c33; padding: 20px; display: flex; justify-content: center; align-items: center; gap: 24px; border-top: 1px solid #2a3942; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
-    .call-btn { width: 56px; height: 56px; border-radius: 50%; border: none; background: #2a3942; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .call-btn.active { background: #ea0038; }
   </style>
 </head>
 <body>
@@ -93,9 +112,8 @@
     <!-- Chat Messages Box -->
     <div class="chat-box" id="chatBox"></div>
 
-    <!-- Bottom Controls Container -->
+    <!-- Bottom Input Controls -->
     <div class="bottom-controls">
-      <!-- Reply Target Bar -->
       <div class="reply-bar" id="replyBar" style="display:none;">
         <div>
           <span style="color:#00a884; font-weight:bold;">Replying to </span>
@@ -105,7 +123,6 @@
         <button class="icon-btn" onclick="clearReplyTarget()">✕</button>
       </div>
 
-      <!-- Input Bar -->
       <div class="input-bar">
         <label class="icon-btn" style="cursor:pointer;">
           📎
@@ -114,6 +131,20 @@
         <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
         <button class="btn" onclick="sendMessage()">Send</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Image Preview Modal -->
+  <div class="image-preview-modal" id="imagePreviewModal" style="display:none;">
+    <div class="preview-header">
+      <span style="font-size:14px; color:#e9edef; font-weight:600;" id="previewTitle">Image Preview</span>
+      <div style="display:flex; gap:12px;">
+        <a id="previewDownloadBtn" download="image.png" class="btn" style="text-decoration:none; padding:6px 12px;">📥 Download</a>
+        <button class="icon-btn" onclick="closeImagePreview()" style="color:#fff;">✕</button>
+      </div>
+    </div>
+    <div class="preview-body">
+      <img id="fullscreenImg" src="" alt="Preview">
     </div>
   </div>
 
@@ -134,7 +165,7 @@
     </div>
   </div>
 
-  <!-- Group Info Modal -->
+  <!-- Group Details Modal -->
   <div class="modal-overlay" id="groupModal" style="display:none;" onclick="closeGroupDetails()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div style="text-align: center;">
@@ -151,7 +182,7 @@
     </div>
   </div>
 
-  <!-- Admin Control Panel Modal -->
+  <!-- Admin Panel -->
   <div class="modal-overlay" id="adminModal" style="display:none;">
     <div class="modal-card">
       <h3>Admin Control Panel</h3>
@@ -167,18 +198,26 @@
     </div>
   </div>
 
-  <!-- Voice Call Overlay with Complete Call Controls -->
-  <div class="call-screen" id="callScreen" style="display:none;">
-    <div class="call-grid">
-      <div style="text-align:center;">
-        <div style="font-size:64px; margin-bottom:12px;">🎙️</div>
-        <h3 id="callStatusText">Calling Room...</h3>
-      </div>
+  <!-- WhatsApp Style Voice Calling Overlay -->
+  <div class="wa-call-screen" id="callScreen" style="display:none;">
+    <div class="wa-call-header">
+      <div class="e2e-tag">🔒 End-to-End Encrypted</div>
+      <div>👥 Group Voice Call</div>
     </div>
-    <div class="call-controls">
-      <button class="call-btn" id="muteBtn" onclick="toggleMute()" title="Mute/Unmute">🎤</button>
-      <button class="call-btn btn-danger" onclick="leaveVoiceCall()" title="End Call">📞</button>
-      <button class="call-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Speaker Toggle">🔊</button>
+
+    <div class="wa-call-main">
+      <div class="wa-avatar-ring">
+        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=DrexqeGroupNetwork" class="wa-avatar-img" id="waCallAvatar">
+      </div>
+      <div class="wa-call-title" id="waCallTitle">Drexqe Group</div>
+      <div class="wa-call-timer" id="callStatusText">Connecting...</div>
+    </div>
+
+    <!-- WhatsApp Control Dock -->
+    <div class="wa-call-dock">
+      <button class="wa-dock-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Speaker">🔊</button>
+      <button class="wa-dock-btn" id="muteBtn" onclick="toggleMute()" title="Mute">🎤</button>
+      <button class="wa-dock-btn end-call" onclick="leaveVoiceCall()" title="End Call">📞</button>
     </div>
   </div>
 
@@ -194,6 +233,8 @@
     let peerConnection = null;
     let isMuted = false;
     let isSpeakerOn = true;
+    let callTimerInterval = null;
+    let callSeconds = 0;
 
     let deviceId = localStorage.getItem('chat_device_id');
     if (!deviceId) {
@@ -209,7 +250,6 @@
       passInput.setAttribute('type', isPass ? 'text' : 'password');
     });
 
-    // Avatars
     function getUserAvatar(username, role) {
       if (role === 'admin') {
         return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
@@ -292,7 +332,13 @@
         }
 
         if (msg.type === 'image') {
-          bodyHtml += `<img src="${msg.payload.fileData}" class="chat-image">`;
+          const fileName = msg.payload.fileName || 'photo.png';
+          bodyHtml += `
+            <div class="media-container">
+              <img src="${msg.payload.fileData}" class="chat-image" onclick="openImagePreview('${msg.payload.fileData}', '${fileName}')">
+              <a href="${msg.payload.fileData}" download="${fileName}" class="img-download-btn">📥 Download</a>
+            </div>
+          `;
         } else if (msg.type === 'file') {
           bodyHtml += `<div class="file-card">📁 <a href="${msg.payload.fileData}" download="${msg.payload.fileName}" class="download-link">${msg.payload.fileName}</a></div>`;
         } else {
@@ -337,6 +383,20 @@
         });
       }
       chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Image Preview Modal Functions
+    function openImagePreview(src, filename) {
+      document.getElementById('fullscreenImg').src = src;
+      const dlBtn = document.getElementById('previewDownloadBtn');
+      dlBtn.href = src;
+      dlBtn.download = filename;
+      document.getElementById('imagePreviewModal').style.display = 'flex';
+    }
+
+    function closeImagePreview() {
+      document.getElementById('imagePreviewModal').style.display = 'none';
+      document.getElementById('fullscreenImg').src = '';
     }
 
     function sendMessage() {
@@ -421,10 +481,10 @@
       }
     }
 
-    // Voice Calling Functions & Call Control Options
+    // WhatsApp Voice Call Interactivity
     async function startVoiceCall() {
       document.getElementById('callScreen').style.display = 'flex';
-      document.getElementById('callStatusText').innerText = 'Connecting voice call...';
+      document.getElementById('callStatusText').innerText = 'Ringing...';
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         peerConnection = new RTCPeerConnection({
@@ -434,9 +494,8 @@
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         peerConnection.ontrack = (event) => {
-          const remoteAudio = document.getElementById('remoteAudio');
-          remoteAudio.srcObject = event.streams[0];
-          document.getElementById('callStatusText').innerText = 'Voice Call Active 🎙️';
+          document.getElementById('remoteAudio').srcObject = event.streams[0];
+          startCallTimer();
         };
 
         peerConnection.onicecandidate = (event) => {
@@ -448,6 +507,17 @@
         alert('Could not access microphone: ' + err.message);
         leaveVoiceCall();
       }
+    }
+
+    function startCallTimer() {
+      callSeconds = 0;
+      clearInterval(callTimerInterval);
+      callTimerInterval = setInterval(() => {
+        callSeconds++;
+        const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+        const secs = String(callSeconds % 60).padStart(2, '0');
+        document.getElementById('callStatusText').innerText = `${mins}:${secs}`;
+      }, 1000);
     }
 
     function toggleMute() {
@@ -479,6 +549,7 @@
     });
 
     function leaveVoiceCall() {
+      clearInterval(callTimerInterval);
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
