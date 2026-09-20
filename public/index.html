@@ -5,51 +5,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Drexqe Chat</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
     html, body { width: 100%; height: 100%; background: #111b21; color: #e9edef; overflow: hidden; }
     body { display: flex; flex-direction: column; height: 100dvh; }
     header { background: #202c33; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222d34; flex-shrink: 0; z-index: 10; }
     #chatBox { flex: 1 1 auto; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #0b141a; min-height: 0; }
-    .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; }
+    
+    .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; cursor: pointer; }
     .msg.me { align-self: flex-end; background: #005c4b; color: #e9edef; }
     .msg.other { align-self: flex-start; background: #202c33; color: #e9edef; }
-    .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; }
+    .msg.system { align-self: center; background: #182229; color: #8696a0; font-size: 12px; font-style: italic; border-radius: 6px; cursor: default; }
     
-    .msg.admin-msg {
-      border: 1px solid #f39c12;
-      box-shadow: 0 0 8px rgba(243, 156, 18, 0.3);
-    }
-    .admin-badge {
-      background: linear-gradient(135deg, #f1c40f, #e67e22);
-      color: #000;
-      font-size: 10px;
-      font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 4px;
-      margin-left: 5px;
-      display: inline-block;
-      vertical-align: middle;
-      box-shadow: 0 0 5px rgba(241, 196, 15, 0.5);
-    }
+    .msg.admin-msg { border: 1px solid #f39c12; box-shadow: 0 0 8px rgba(243, 156, 18, 0.3); }
+    .admin-badge { background: linear-gradient(135deg, #f1c40f, #e67e22); color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 5px; display: inline-block; vertical-align: middle; }
+
+    /* Reply preview styling inside messages */
+    .reply-quote { background: rgba(0, 0, 0, 0.25); border-left: 4px solid #00a884; border-radius: 4px; padding: 4px 8px; margin-bottom: 6px; font-size: 12px; }
+    .reply-quote .reply-author { font-weight: bold; color: #00a884; margin-bottom: 2px; }
+    .reply-quote .reply-text { color: #d1d7db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Active Reply Bar above input */
+    #replyBar { display: none; background: #182229; padding: 8px 12px; border-left: 4px solid #00a884; justify-content: space-between; align-items: center; font-size: 13px; }
+    #replyBar .reply-info { overflow: hidden; }
+    #replyBar .reply-user { font-weight: bold; color: #00a884; }
+    #replyBar .reply-content { color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #cancelReplyBtn { background: none; border: none; color: #8696a0; font-size: 16px; cursor: pointer; padding: 0 5px; }
 
     .file-card { background: #111b21; padding: 10px; border-radius: 6px; border: 1px solid #2a3942; margin-top: 5px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .file-info { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .download-link { background: #00a884; color: #111b21; padding: 4px 8px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 12px; }
 
-    .msg img { max-width: 100%; max-height: 250px; border-radius: 6px; margin-top: 5px; cursor: pointer; }
+    .msg img { max-width: 100%; max-height: 220px; border-radius: 6px; margin-top: 5px; cursor: pointer; object-fit: cover; }
     .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
     .delete-btn { background: transparent; border: none; color: #8696a0; font-size: 12px; cursor: pointer; padding: 0 4px; }
     .delete-btn:hover { color: #ea0038; }
-    footer { background: #202c33; padding: 10px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; z-index: 10; }
-    input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; font-size: 14px; }
+    
+    footer { background: #202c33; padding: 10px; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; }
+    .input-row { display: flex; gap: 8px; align-items: center; width: 100%; margin-top: 4px; }
+    input[type="text"], input[type="password"], select { background: #2a3942; border: none; padding: 12px; border-radius: 8px; color: #fff; outline: none; font-size: 14px; user-select: text; }
     button { background: #00a884; border: none; padding: 10px 14px; border-radius: 8px; color: #111b21; font-weight: bold; cursor: pointer; font-size: 14px; }
     .btn-danger { background: #ea0038; color: #fff; }
+    
     .modal { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 9999; }
     .modal-content { background: #222d34; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
+    
+    /* Image Lightbox Modal */
+    #imageModal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.92); z-index: 20000; flex-direction: column; justify-content: space-between; padding: 20px; align-items: center; }
+    #imageModal img { max-width: 95%; max-height: 75vh; object-fit: contain; border-radius: 8px; border: 1px solid #2a3942; }
+    .img-modal-tools { display: flex; gap: 15px; margin-top: 15px; }
+
     .pass-container { position: relative; width: 100%; margin-bottom: 15px; }
     .pass-container input { width: 100%; padding-right: 40px; }
     .eye-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #8696a0; cursor: pointer; font-size: 18px; padding: 0; }
     .banned-list-item { display: flex; justify-content: space-between; align-items: center; background: #111b21; padding: 8px 12px; margin: 5px 0; border-radius: 6px; font-size: 14px; }
+    
     #callScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; z-index: 10000; flex-direction: column; justify-content: space-between; padding: 20px; }
     .call-header { text-align: center; padding-top: 20px; }
     .call-header h4 { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
@@ -80,12 +89,32 @@
   <div id="audioContainer"></div>
 
   <footer>
-    <input type="file" id="mediaInput" style="display:none;" onchange="sendMediaFile(this)">
-    <button type="button" onclick="document.getElementById('mediaInput').click()">📎</button>
-    <input type="text" id="msgInput" placeholder="Type a message..." style="flex:1;">
-    <button id="recordBtn" onclick="toggleRecording()">🎙️</button>
-    <button onclick="sendMessage()">Send</button>
+    <div id="replyBar">
+      <div class="reply-info">
+        Replying to <span class="reply-user" id="replyUserTarget"></span>:
+        <div class="reply-content" id="replyTextTarget"></div>
+      </div>
+      <button id="cancelReplyBtn" onclick="clearReplyTarget()">✕</button>
+    </div>
+    <div class="input-row">
+      <input type="file" id="mediaInput" style="display:none;" onchange="sendMediaFile(this)">
+      <button type="button" onclick="document.getElementById('mediaInput').click()">📎</button>
+      <input type="text" id="msgInput" placeholder="Type a message..." style="flex:1;">
+      <button id="recordBtn" onclick="toggleRecording()">🎙️</button>
+      <button onclick="sendMessage()">Send</button>
+    </div>
   </footer>
+
+  <!-- Image View Modal -->
+  <div id="imageModal">
+    <div style="width:100%; display:flex; justify-content:flex-end;">
+      <button onclick="closeImageModal()" style="background:#2a3942; color:#fff; border-radius:50%; width:36px; height:36px; padding:0;">✕</button>
+    </div>
+    <img id="modalImageView" src="" alt="Preview">
+    <div class="img-modal-tools">
+      <a id="downloadImgBtn" class="download-link" href="" download="image.png" style="padding:10px 20px; font-size:14px;">⬇️ Download Photo</a>
+    </div>
+  </div>
 
   <div id="callScreen">
     <div class="call-header">
@@ -145,6 +174,7 @@
     let currentUser = "";
     let userRole = "member";
     let activeCallUsersList = [];
+    let activeReplyTarget = null;
 
     const rtcConfig = {
       iceServers: [
@@ -153,7 +183,15 @@
       ]
     };
 
-    // Auto-fill passkey only if previously saved in localStorage
+    function getDeviceId() {
+      let devId = localStorage.getItem("chat_device_id");
+      if (!devId) {
+        devId = "dev_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now();
+        localStorage.setItem("chat_device_id", devId);
+      }
+      return devId;
+    }
+
     window.onload = function() {
       const savedPass = localStorage.getItem("chat_passkey");
       const savedRole = localStorage.getItem("chat_role");
@@ -193,11 +231,16 @@
       currentUser = name;
       userRole = role;
 
-      socket.emit("join-room", { room: FIXED_ROOM, user: name, role: role, passkey: passkey });
+      socket.emit("join-room", { 
+        room: FIXED_ROOM, 
+        user: name, 
+        role: role, 
+        passkey: passkey,
+        deviceId: getDeviceId() 
+      });
     }
 
     socket.on("auth-success", () => {
-      // Save credentials only after successful authentication
       localStorage.setItem("chat_passkey", document.getElementById("passkeyInput").value.trim());
       localStorage.setItem("chat_role", userRole);
       localStorage.setItem("chat_user", currentUser);
@@ -216,8 +259,21 @@
     });
 
     socket.on("abuse-warning", ({ warnings, word }) => {
-      alert(`⚠️ Warning ${warnings}/3: Offensive message containing "${word}" was blocked and deleted! Reaching 3 warnings will auto-ban you.`);
+      alert(`⚠️ Warning ${warnings}/3: Offensive message containing "${word}" was blocked! Reaching 3 warnings will permanently ban your device.`);
     });
+
+    function setReplyTarget(sender, text) {
+      activeReplyTarget = { sender, text };
+      document.getElementById("replyUserTarget").textContent = sender;
+      document.getElementById("replyTextTarget").textContent = text || "[Media/Attachment]";
+      document.getElementById("replyBar").style.display = "flex";
+      document.getElementById("msgInput").focus();
+    }
+
+    function clearReplyTarget() {
+      activeReplyTarget = null;
+      document.getElementById("replyBar").style.display = "none";
+    }
 
     function sendMessage() {
       const input = document.getElementById("msgInput");
@@ -225,8 +281,15 @@
       if (!text) return;
 
       const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
-      socket.emit("chat-message", { room: FIXED_ROOM, id: msgId, payload: { sender: currentUser, text: text } });
+      
+      const payload = { sender: currentUser, text: text };
+      if (activeReplyTarget) {
+        payload.replyTo = activeReplyTarget;
+      }
+
+      socket.emit("chat-message", { room: FIXED_ROOM, id: msgId, payload: payload, deviceId: getDeviceId() });
       input.value = "";
+      clearReplyTarget();
     }
 
     function sendMediaFile(input) {
@@ -236,17 +299,24 @@
       const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
       const reader = new FileReader();
       reader.onload = function(e) {
+        const payload = { 
+          sender: currentUser, 
+          fileData: e.target.result, 
+          fileName: file.name,
+          fileType: file.type 
+        };
+        if (activeReplyTarget) {
+          payload.replyTo = activeReplyTarget;
+        }
+
         socket.emit("chat-message", {
           room: FIXED_ROOM,
           id: msgId,
           type: "file",
-          payload: { 
-            sender: currentUser, 
-            fileData: e.target.result, 
-            fileName: file.name,
-            fileType: file.type 
-          }
+          payload: payload,
+          deviceId: getDeviceId()
         });
+        clearReplyTarget();
       };
       reader.readAsDataURL(file);
       input.value = "";
@@ -268,12 +338,17 @@
             reader.readAsDataURL(blob);
             reader.onloadend = () => {
               const msgId = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+              const payload = { sender: currentUser, audio: reader.result };
+              if (activeReplyTarget) payload.replyTo = activeReplyTarget;
+
               socket.emit("chat-message", { 
                 room: FIXED_ROOM, 
                 id: msgId,
                 type: "voice",
-                payload: { sender: currentUser, audio: reader.result } 
+                payload: payload,
+                deviceId: getDeviceId()
               });
+              clearReplyTarget();
             };
           };
           mediaRecorder.start();
@@ -285,6 +360,20 @@
         isRecording = false;
         btn.style.background = "#00a884";
       }
+    }
+
+    function openImageModal(src) {
+      const modal = document.getElementById("imageModal");
+      const imgView = document.getElementById("modalImageView");
+      const downloadBtn = document.getElementById("downloadImgBtn");
+      
+      imgView.src = src;
+      downloadBtn.href = src;
+      modal.style.display = "flex";
+    }
+
+    function closeImageModal() {
+      document.getElementById("imageModal").style.display = "none";
     }
 
     socket.on("chat-message", (data) => {
@@ -306,24 +395,45 @@
         if (isAdmin) msgClasses.push("admin-msg");
         div.className = msgClasses.join(" ");
 
+        let replySnippet = "";
+        if (data.payload.replyTo) {
+          replySnippet = `<div class="reply-quote"><div class="reply-author">${data.payload.replyTo.sender}</div><div class="reply-text">${data.payload.replyTo.text}</div></div>`;
+        }
+
         const canDelete = isMe || userRole === "admin";
-        const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="deleteMessage('${msgId}')">🗑️</button>` : '';
+        const deleteMarkup = canDelete ? `<button class="delete-btn" onclick="event.stopPropagation(); deleteMessage('${msgId}')">🗑️</button>` : '';
         const adminBadgeMarkup = isAdmin ? `<span class="admin-badge">👑 ADMIN</span>` : '';
 
         const headerHtml = `<div class="msg-header"><span><strong>${data.payload.sender}</strong>${adminBadgeMarkup}</span>${deleteMarkup}</div>`;
 
+        let summaryText = "";
         if (data.type === "voice") {
-          div.innerHTML = `${headerHtml}<audio controls src="${data.payload.audio}"></audio>`;
+          summaryText = "🎤 Voice Note";
+          div.innerHTML = `${headerHtml}${replySnippet}<audio controls src="${data.payload.audio}"></audio>`;
         } else if (data.type === "file") {
           const isImage = data.payload.fileType && data.payload.fileType.startsWith("image/");
           if (isImage) {
-            div.innerHTML = `${headerHtml}<img src="${data.payload.fileData}" onclick="window.open(this.src)">`;
+            summaryText = "📷 Photo";
+            div.innerHTML = `${headerHtml}${replySnippet}<img src="${data.payload.fileData}" onclick="event.stopPropagation(); openImageModal(this.src)">`;
           } else {
-            div.innerHTML = `${headerHtml}<div class="file-card"><div class="file-info">📄 ${data.payload.fileName}</div><a class="download-link" href="${data.payload.fileData}" download="${data.payload.fileName}">Download</a></div>`;
+            summaryText = `📄 ${data.payload.fileName}`;
+            div.innerHTML = `${headerHtml}${replySnippet}<div class="file-card"><div class="file-info">📄 ${data.payload.fileName}</div><a class="download-link" href="${data.payload.fileData}" download="${data.payload.fileName}" onclick="event.stopPropagation()">Download</a></div>`;
           }
         } else {
-          div.innerHTML = `${headerHtml}<span>${data.payload.text || ''}</span>`;
+          summaryText = data.payload.text || "";
+          div.innerHTML = `${headerHtml}${replySnippet}<span>${data.payload.text || ''}</span>`;
         }
+
+        let lastTap = 0;
+        div.addEventListener('click', (e) => {
+          const currentTime = new Date().getTime();
+          const tapLength = currentTime - lastTap;
+          if (tapLength < 300 && tapLength > 0) {
+            setReplyTarget(data.payload.sender, summaryText);
+            e.preventDefault();
+          }
+          lastTap = currentTime;
+        });
       }
 
       box.appendChild(div);
