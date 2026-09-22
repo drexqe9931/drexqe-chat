@@ -16,6 +16,7 @@ const chatHistory = [];
 const bannedUsers = new Set();
 const bannedDevices = new Set();
 const userWarnings = new Map();
+const callParticipants = new Map(); // socketId -> { user, room }
 
 const MEMBER_PASSKEY = '9460';
 const ADMIN_PASSKEY = 'M4nil@l019';
@@ -88,19 +89,19 @@ io.on('connection', (socket) => {
       userWarnings.set(socket.username, warnings);
 
       if (warnings < 3) {
-        socket.emit('warning-msg', `⚠️ Warning (${warnings}/2): Abusive language is not allowed! Reaching 3 warnings will result in an automatic ban.`);
+        socket.emit('warning-msg', `⚠️ Warning (${warnings}/2): Abusive language is not allowed!`);
         return;
       } else {
         bannedUsers.add(socket.username);
         if (deviceId) bannedDevices.add(deviceId);
         userWarnings.delete(socket.username);
 
-        socket.emit('user-banned', 'You have been automatically banned after 3 warnings for using abusive language.');
+        socket.emit('user-banned', 'Banned after 3 warnings for abusive language.');
         
         const banNotice = {
           id: 'sys_' + Date.now(),
           type: 'system',
-          payload: { text: `🚨 ${socket.username} was automatically banned after 3 abusive language warnings.` }
+          payload: { text: `🚨 ${socket.username} was automatically banned after 3 warnings.` }
         };
         chatHistory.push(banNotice);
         io.to(room).emit('chat-message', banNotice);
@@ -158,31 +159,67 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- Voice Call WebRTC Signaling & Chat Announcements ---
-  socket.on('start-call-announcement', ({ room, user }) => {
+  // --- FULL MESH VOICE CALL SIGNALING & ANNOUNCEMENTS ---
+  socket.on('join-voice-call', ({ room }) => {
+    // Collect active call members in room
+    const existingCallers = [];
+    callParticipants.forEach((val, sid) => {
+      if (val.room === room) {
+        existingCallers.push({ socketId: sid, username: val.user });
+      }
+    });
+
+    callParticipants.set(socket.id, { user: socket.username, room });
+
+    // Inform joining user about current call participants
+    socket.emit('existing-callers', existingCallers);
+
+    // Broadcast announcement into main chat
     const callMsg = {
       id: 'sys_call_' + Date.now(),
       type: 'system',
-      payload: { text: `📞 ${user} started a group voice call! Tap Call in header to join.` }
+      payload: { text: `📞 ${socket.username} joined the group voice call!` }
     };
     chatHistory.push(callMsg);
     io.to(room).emit('chat-message', callMsg);
   });
 
-  socket.on('webrtc-offer', (data) => {
-    socket.to(data.room).emit('webrtc-offer', { offer: data.offer, from: socket.username });
+  socket.on('webrtc-offer', ({ targetSocketId, offer }) => {
+    io.to(targetSocketId).emit('webrtc-offer', {
+      fromSocketId: socket.id,
+      fromUsername: socket.username,
+      offer
+    });
   });
 
-  socket.on('webrtc-answer', (data) => {
-    socket.to(data.room).emit('webrtc-answer', { answer: data.answer, from: socket.username });
+  socket.on('webrtc-answer', ({ targetSocketId, answer }) => {
+    io.to(targetSocketId).emit('webrtc-answer', {
+      fromSocketId: socket.id,
+      answer
+    });
   });
 
-  socket.on('webrtc-ice', (data) => {
-    socket.to(data.room).emit('webrtc-ice', { candidate: data.candidate, from: socket.username });
+  socket.on('webrtc-ice', ({ targetSocketId, candidate }) => {
+    io.to(targetSocketId).emit('webrtc-ice', {
+      fromSocketId: socket.id,
+      candidate
+    });
   });
 
-  socket.on('end-call', (data) => {
-    socket.to(data.room).emit('call-ended', { from: socket.username });
+  socket.on('leave-voice-call', () => {
+    if (callParticipants.has(socket.id)) {
+      const info = callParticipants.get(socket.id);
+      callParticipants.delete(socket.id);
+      socket.to(info.room).emit('caller-left', { socketId: socket.id, username: socket.username });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (callParticipants.has(socket.id)) {
+      const info = callParticipants.get(socket.id);
+      callParticipants.delete(socket.id);
+      socket.to(info.room).emit('caller-left', { socketId: socket.id, username: socket.username });
+    }
   });
 });
 
