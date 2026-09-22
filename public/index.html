@@ -18,7 +18,6 @@
     .header-info p { font-size: 11px; color: #8696a0; }
     .header-actions { display: flex; gap: 8px; }
 
-    /* Button Animations */
     .btn { background: #00a884; color: #111b21; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), background-color 0.15s ease, opacity 0.15s; will-change: transform; }
     .btn:hover { background: #00c69b; }
     .btn:active { transform: scale(0.92); opacity: 0.85; }
@@ -27,7 +26,6 @@
 
     .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: #0b141a; scroll-behavior: smooth; }
 
-    /* Message Pop-In & Slide Animations */
     .msg-row { display: flex; margin-bottom: 2px; }
     .msg-row.me { justify-content: flex-end; }
     .msg-row.other { justify-content: flex-start; }
@@ -59,10 +57,9 @@
     .msg.admin-msg { border: 1px solid #f39c12; box-shadow: 0 0 10px rgba(243, 156, 18, 0.25); }
     .admin-crown-badge { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
-    .msg.system { background: #182229; color: #8696a0; font-size: 12px; border-radius: 6px; padding: 4px 10px; text-align: center; }
+    .msg.system { background: #182229; color: #00a884; font-size: 12px; border-radius: 6px; padding: 6px 12px; text-align: center; border: 1px solid rgba(0, 168, 132, 0.2); }
     .msg-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; color: #8696a0; }
     
-    /* Action Buttons Animation */
     .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.7; color: #8696a0; transition: transform 0.15s ease, opacity 0.15s ease; }
     .action-btn:hover { opacity: 1; transform: scale(1.2); }
     .action-btn:active { transform: scale(0.85); }
@@ -82,7 +79,6 @@
     .voice-note-player { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
     .voice-note-player audio { height: 32px; max-width: 220px; }
 
-    /* Upload Meter Styles */
     .upload-meter-bar { background: #111b21; padding: 8px 14px; border-bottom: 1px solid #2a3942; display: flex; flex-direction: column; gap: 4px; font-size: 12px; animation: slideDown 0.2s ease-out; }
     @keyframes slideDown { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     .upload-info { display: flex; justify-content: space-between; color: #00a884; font-weight: 600; }
@@ -97,7 +93,6 @@
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; transition: background-color 0.2s ease; }
     .input-bar input[type="text"]:focus { background: #32434d; }
     
-    /* Animated Icon Buttons */
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.15s ease, color 0.15s ease; will-change: transform; }
     .icon-btn:hover { color: #e9edef; transform: scale(1.15); }
     .icon-btn:active { transform: scale(0.85); }
@@ -114,27 +109,32 @@
     .preview-body { flex: 1; display: flex; justify-content: center; align-items: center; padding: 12px; }
     .preview-body img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; }
 
+    /* Call Screen Fixed Alignment */
     .wa-call-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; animation: fadeInModal 0.2s ease-out; }
     .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; background: rgba(0,0,0,0.2); }
     .wa-call-header .e2e-tag { display: flex; align-items: center; gap: 6px; color: #00a884; font-weight: 600; }
 
     .wa-call-grid { flex: 1; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; align-content: center; overflow-y: auto; }
-    .wa-call-tile { background: #1f2c34; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 2px solid #2a3942; min-height: 160px; transition: border-color 0.2s ease; }
+    .wa-call-tile { background: #1f2c34; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 2px solid #2a3942; min-height: 170px; transition: border-color 0.2s ease; }
     .wa-call-tile.speaking { border-color: #00a884; box-shadow: 0 0 15px rgba(0, 168, 132, 0.3); }
-    .wa-tile-name { font-size: 14px; font-weight: 600; color: #e9edef; margin-top: 10px; }
+    .wa-tile-name { font-size: 14px; font-weight: 600; color: #e9edef; margin-top: 6px; }
     
-    .waveform { display: flex; align-items: center; gap: 3px; height: 16px; margin-top: 6px; }
+    /* Voice Bars Above Name */
+    .waveform { display: flex; align-items: center; gap: 4px; height: 18px; margin-top: 8px; margin-bottom: 2px; }
     .waveform span { width: 3px; height: 100%; background: #00a884; border-radius: 3px; animation: bounce 0.8s infinite ease-in-out alternate; }
     .waveform span:nth-child(2) { animation-delay: 0.2s; }
     .waveform span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes bounce { 0% { height: 4px; } 100% { height: 16px; } }
+    @keyframes bounce { 0% { height: 4px; } 100% { height: 18px; } }
 
-    .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-space-around; align-items: center; border-top: 1px solid #2a3942; }
-    .wa-dock-btn { width: 52px; height: 52px; border-radius: 50%; border: none; background: #2a3942; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s ease, background-color 0.15s ease; }
+    /* Perfectly Centered Call Dock Controls */
+    .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: center; align-items: center; gap: 24px; border-top: 1px solid #2a3942; }
+    .wa-dock-btn { width: 54px; height: 54px; border-radius: 50%; border: none; background: #2a3942; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s ease, background-color 0.15s ease; flex-shrink: 0; }
     .wa-dock-btn:active { transform: scale(0.88); }
     .wa-dock-btn.active { background: #ea0038; color: #fff; }
-    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; font-size: 24px; transform: rotate(135deg); }
-    .wa-dock-btn.end-call:active { transform: rotate(135deg) scale(0.88); }
+    
+    /* Center SVG Call Icon Directly */
+    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+    .wa-dock-btn.end-call svg { width: 26px; height: 26px; fill: currentColor; }
 
     .modal-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2500; animation: fadeInModal 0.2s ease-out; }
     .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; animation: popUp 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2); }
@@ -164,7 +164,6 @@
     <div class="chat-box" id="chatBox"></div>
 
     <div class="bottom-controls">
-      <!-- Upload Meter Display -->
       <div class="upload-meter-bar" id="uploadMeterBar" style="display:none;">
         <div class="upload-info">
           <span id="uploadFileName">Uploading file...</span>
@@ -266,7 +265,9 @@
     <div class="wa-call-dock">
       <button class="wa-dock-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Speaker">🔊</button>
       <button class="wa-dock-btn" id="muteBtn" onclick="toggleMute()" title="Mute">🎤</button>
-      <button class="wa-dock-btn end-call" onclick="leaveVoiceCall()" title="End Call">📞</button>
+      <button class="wa-dock-btn end-call" onclick="leaveVoiceCall()" title="End Call">
+        <svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.1-.7-.28-.79-.73-1.68-1.36-2.66-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+      </button>
     </div>
   </div>
 
@@ -634,11 +635,11 @@
         grid.appendChild(tile);
       }
       tile.innerHTML = `
-        <div style="font-size: 32px;">👤</div>
-        <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
+        <div style="font-size: 34px;">👤</div>
         <div class="waveform">
           <span></span><span></span><span></span>
         </div>
+        <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
       `;
     }
 
@@ -671,6 +672,9 @@
 
       document.getElementById('callScreen').style.display = 'flex';
       
+      // Post call announcement to group chat
+      socket.emit('start-call-announcement', { room: 'main-room', user: currentUser });
+
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setupPeerConnection();

@@ -6,7 +6,6 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Increased payload limit to 100MB
 const io = new Server(server, {
   maxHttpBufferSize: 1e8
 });
@@ -159,7 +158,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- Voice Call WebRTC Signaling ---
+  // --- Voice Call WebRTC Signaling & Chat Announcements ---
+  socket.on('start-call-announcement', ({ room, user }) => {
+    const callMsg = {
+      id: 'sys_call_' + Date.now(),
+      type: 'system',
+      payload: { text: `📞 ${user} started a group voice call! Tap Call in header to join.` }
+    };
+    chatHistory.push(callMsg);
+    io.to(room).emit('chat-message', callMsg);
+  });
+
   socket.on('webrtc-offer', (data) => {
     socket.to(data.room).emit('webrtc-offer', { offer: data.offer, from: socket.username });
   });
