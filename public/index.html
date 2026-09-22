@@ -45,7 +45,6 @@
     .action-btn:hover { opacity: 1; color: #fff; }
 
     .reply-quote { background: rgba(0,0,0,0.25); border-left: 4px solid #00a884; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 6px; }
-
     .chat-image { max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; display: block; object-fit: cover; margin-top: 4px; }
 
     .call-banner { background: #182229; border: 1px solid #00a884; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 320px; }
@@ -57,9 +56,13 @@
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; display: flex; align-items: center; justify-content: center; }
 
-    .recording-indicator { display: flex; align-items: center; gap: 8px; color: #ea0038; font-size: 13px; font-weight: bold; flex: 1; }
+    .recording-indicator { display: flex; align-items: center; gap: 10px; color: #ea0038; font-size: 13px; font-weight: bold; flex: 1; }
     .recording-dot { width: 10px; height: 10px; background: #ea0038; border-radius: 50%; animation: pulse 1s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+    /* Sound Visualizer Bars */
+    .audio-visualizer { display: flex; align-items: center; gap: 3px; height: 24px; }
+    .audio-bar { width: 4px; background: #00a884; border-radius: 2px; height: 4px; transition: height 0.05s ease-in-out; }
 
     .password-wrapper { position: relative; width: 100%; }
     .password-wrapper input { width: 100%; padding-right: 36px; }
@@ -73,7 +76,7 @@
     .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; background: rgba(0,0,0,0.2); }
     .wa-call-grid { flex: 1; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; align-content: center; overflow-y: auto; }
     .wa-call-tile { background: #1f2c34; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #2a3942; min-height: 150px; }
-    .wa-call-tile.speaking { border-color: #00a884; box-shadow: 0 0 15px rgba(0, 168, 132, 0.3); }
+    .wa-call-tile.speaking { border-color: #00a884; box-shadow: 0 0 15px rgba(0, 168, 132, 0.4); }
     .wa-tile-name { font-size: 13px; font-weight: 600; color: #e9edef; margin-top: 6px; }
 
     .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: center; align-items: center; gap: 24px; }
@@ -118,6 +121,15 @@
         <div class="recording-indicator">
           <div class="recording-dot"></div>
           <span id="recordingTimer">00:00</span>
+          
+          <!-- Animated audio wave container inside recording bar -->
+          <div class="audio-visualizer" id="recVisualizer">
+            <div class="audio-bar" style="background:#ea0038;"></div>
+            <div class="audio-bar" style="background:#ea0038;"></div>
+            <div class="audio-bar" style="background:#ea0038;"></div>
+            <div class="audio-bar" style="background:#ea0038;"></div>
+            <div class="audio-bar" style="background:#ea0038;"></div>
+          </div>
         </div>
         <button class="btn btn-danger" onclick="cancelVoiceRecording()">Cancel</button>
         <button class="btn" onclick="stopAndSendVoiceRecording()">Send Voice</button>
@@ -193,12 +205,17 @@
     let callTimerInterval = null;
     let callSeconds = 0;
 
+    // Web Audio Analyzer variables
+    let audioCtx = null;
+    let analyser = null;
+    let animFrame = null;
+
+    // Standard STUN configuration for web RTC audio traversal across network/browsers
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:openrelay.metered.ca:80' },
-        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
       ]
     };
 
@@ -231,8 +248,7 @@
         room: 'main-room',
         user: user,
         role: role,
-        passkey: passkey,
-        deviceId: 'dev_' + Math.random().toString(36).substring(2, 9)
+        passkey: passkey
       });
     }
 
@@ -373,6 +389,41 @@
       reader.readAsDataURL(file);
     }
 
+    // Sound level visualizer helper
+    function setupAudioAnalyzer(stream, targetVisualizerId) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 32;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function update() {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+        let average = sum / bufferLength;
+
+        const container = document.getElementById(targetVisualizerId);
+        if (container) {
+          const bars = container.querySelectorAll('.audio-bar');
+          bars.forEach((bar, idx) => {
+            let val = (dataArray[idx % bufferLength] || average) / 255 * 28;
+            bar.style.height = `${Math.max(4, val)}px`;
+          });
+        }
+        animFrame = requestAnimationFrame(update);
+      }
+      update();
+    }
+
+    function stopAudioAnalyzer() {
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    }
+
     async function startVoiceRecording() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -381,6 +432,8 @@
 
         mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
         mediaRecorder.start();
+
+        setupAudioAnalyzer(stream, 'recVisualizer');
 
         document.getElementById('standardInputBar').style.display = 'none';
         document.getElementById('recordingInputBar').style.display = 'flex';
@@ -399,6 +452,7 @@
 
     function cancelVoiceRecording() {
       if (mediaRecorder) mediaRecorder.stop();
+      stopAudioAnalyzer();
       clearInterval(recTimerInterval);
       document.getElementById('standardInputBar').style.display = 'flex';
       document.getElementById('recordingInputBar').style.display = 'none';
@@ -421,6 +475,7 @@
         reader.readAsDataURL(audioBlob);
       };
       mediaRecorder.stop();
+      stopAudioAnalyzer();
       clearInterval(recTimerInterval);
       document.getElementById('standardInputBar').style.display = 'flex';
       document.getElementById('recordingInputBar').style.display = 'none';
@@ -438,18 +493,25 @@
       if (u) socket.emit('admin-unban-user', { room: 'main-room', username: u });
     }
 
+    // Render Call user tile with dynamic voice visualizer icon below username
     function renderCallUserTile(name, isMe, id) {
       const grid = document.getElementById('callGrid');
       let tile = document.getElementById(`call_tile_${id}`);
       if (!tile) {
         tile = document.createElement('div');
-        tile.className = `wa-call-tile ${isMe ? 'speaking' : ''}`;
+        tile.className = 'wa-call-tile';
         tile.id = `call_tile_${id}`;
         grid.appendChild(tile);
       }
       tile.innerHTML = `
         <div style="font-size: 32px;">👤</div>
         <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
+        <div class="audio-visualizer" id="viz_${id}" style="margin-top:6px;">
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+        </div>
       `;
     }
 
@@ -460,6 +522,7 @@
 
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setupAudioAnalyzer(localStream, 'viz_local');
         startCallTimer();
 
         if (isInitiatorAnnouncement) {
@@ -523,9 +586,11 @@
           audioEl = document.createElement('audio');
           audioEl.id = `audio_${targetSocketId}`;
           audioEl.autoplay = true;
+          audioEl.setAttribute('playsinline', 'true');
           document.getElementById('remoteAudioContainer').appendChild(audioEl);
         }
         audioEl.srcObject = event.streams[0];
+        audioEl.play().catch(e => console.log('Autoplay play error:', e));
       };
 
       pc.onicecandidate = (event) => {
@@ -577,6 +642,7 @@
 
     function leaveGroupCall() {
       clearInterval(callTimerInterval);
+      stopAudioAnalyzer();
       socket.emit('leave-voice-call');
 
       Object.keys(peerConnections).forEach(sid => peerConnections[sid].close());
