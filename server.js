@@ -5,85 +5,108 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-
-// Increase buffer size to 500MB for large media transfers
 const io = new Server(server, {
-  maxHttpBufferSize: 5e8
+  maxHttpBufferSize: 1e8 // 100 MB max payload for chunked uploads
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const PASSKEYS = {
-  admin: 'M4nil@l019',
-  member: '9460'
-};
-
-const BAD_WORDS = [
-  'badword1', 'badword2', 'fuck', 'shit', 'bitch', 'asshole',
-  'bc', 'mc', 'bhenchod', 'madarchod', 'gandu', 'chutiya', 'bhosdike', 'gaand', 'lauta', 'randi', 'harami'
-];
-
-const roomData = {
-  'main-room': {
-    messages: [],
-    users: {},
-    bannedUsers: new Set(),
-    userWarnings: {},
-    callers: {}
-  }
-};
-
-// Storage for chunked uploads in progress
+// In-memory data stores
+const chatHistory = [];
+const bannedUsers = new Set();
 const activeUploads = {};
+const userAbuseCounts = {};
 
-function containsBadWords(text) {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  return BAD_WORDS.some(word => lower.includes(word));
-}
+// Hinglish abusive keywords list
+const abuseKeywords = ['mc', 'bc', 'chutiya', 'gaand', 'bsdk', 'bhosdike', 'madarchod', 'behenchod', 'harami', 'lauda', 'lodu', 'lode'];
 
 io.on('connection', (socket) => {
+  let joinedUser = null;
+  let joinedRole = 'member';
+
   socket.on('join-room', ({ room, user, role, passkey }) => {
-    const roomState = roomData[room] || roomData['main-room'];
-
-    if (roomState.bannedUsers.has(user)) {
-      return socket.emit('user-banned', 'You are banned from this chat.');
+    // Passkey verification
+    if (role === 'admin' && passkey !== 'admin123') {
+      return socket.emit('auth-error', 'Incorrect Admin Passkey!');
+    }
+    if (role === 'member' && passkey !== 'member123') {
+      return socket.emit('auth-error', 'Incorrect Member Passkey!');
     }
 
-    if (PASSKEYS[role] !== passkey) {
-      return socket.emit('auth-error', 'Invalid Passkey for selected role.');
+    if (bannedUsers.has(user)) {
+      return socket.emit('user-banned', '⛔ You are banned from this room.');
     }
 
+    joinedUser = user;
+    joinedRole = role;
+    socket.username = user;
+    socket.role = role;
     socket.join(room);
-    socket.userData = { room, user, role };
-    roomState.users[socket.id] = { username: user, role };
 
     socket.emit('auth-success');
-    socket.emit('chat-history', roomState.messages);
+    socket.emit('chat-history', chatHistory);
 
-    const sysMsg = {
-      id: Date.now().toString(),
+    io.to(room).emit('chat-message', {
       type: 'system',
-      payload: { text: `${user} joined the chat.` }
-    };
-    roomState.messages.push(sysMsg);
-    io.to(room).emit('chat-message', sysMsg);
+      payload: { text: `🟢 ${user} (${role}) joined the chat.` }
+    });
   });
 
-  // Handle Chunked Binary File Uploads
+  socket.on('chat-message', (data) => {
+    const username = data.payload.user;
+    const text = data.payload.text || '';
+    const lowerText = text.toLowerCase();
+
+    // Check for Hinglish abuse words
+    const hasAbuse = abuseKeywords.some(word => new RegExp(`\\b${word}\\b`, 'i').test(lowerText));
+
+    if (hasAbuse) {
+      userAbuseCounts[username] = (userAbuseCounts[username] || 0) + 1;
+      const count = userAbuseCounts[username];
+
+      if (count === 1) {
+        socket.emit('warning-msg', '⚠️ WARNING (1/3): Abusive words are strictly prohibited in this group!');
+        return;
+      } else if (count === 2) {
+        socket.emit('warning-msg', '⚠️ FINAL WARNING (2/3): One more abusive message and you will be automatically BANNED!');
+        return;
+      } else if (count >= 3) {
+        bannedUsers.add(username);
+        socket.emit('user-banned', '⛔ You have been automatically banned from the group for repeated use of abusive language.');
+        socket.disconnect();
+        io.to('main-room').emit('chat-message', {
+          type: 'system',
+          payload: { text: `🚨 ${username} was automatically banned for repeated abuse.` }
+        });
+        return;
+      }
+    }
+
+    // Save & broadcast valid message
+    const msgData = {
+      id: Date.now().toString() + '_' + Math.random().toString(36).substring(2, 7),
+      type: data.type || 'text',
+      role: socket.role || 'member',
+      replyTo: data.replyTo || null,
+      payload: data.payload
+    };
+
+    chatHistory.push(msgData);
+    if (chatHistory.length > 200) chatHistory.shift();
+
+    io.to('main-room').emit('chat-message', msgData);
+  });
+
+  // Chunked Media Upload Handlers
   socket.on('upload-start', ({ uploadId, fileName, fileType, fileSize, totalChunks, replyTo }) => {
     activeUploads[uploadId] = {
-      uploadId,
       fileName,
       fileType,
       fileSize,
       totalChunks,
       replyTo,
-      receivedChunks: [],
-      receivedSize: 0,
-      user: socket.userData ? socket.userData.user : 'Unknown',
-      role: socket.userData ? socket.userData.role : 'member',
-      room: socket.userData ? socket.userData.room : 'main-room'
+      chunks: [],
+      user: socket.username
     };
   });
 
@@ -91,184 +114,122 @@ io.on('connection', (socket) => {
     const upload = activeUploads[uploadId];
     if (!upload) return;
 
-    const buffer = Buffer.from(chunkData);
-    upload.receivedChunks[chunkIndex] = buffer;
-    upload.receivedSize += buffer.length;
+    upload.chunks[chunkIndex] = Buffer.from(chunkData);
 
-    // Send back progress ACK to caller
-    const progress = Math.min(100, Math.round((upload.receivedSize / upload.fileSize) * 100));
-    socket.emit('upload-progress-ack', { uploadId, progress, uploadedBytes: upload.receivedSize, totalBytes: upload.fileSize });
+    if (upload.chunks.filter(Boolean).length === upload.totalChunks) {
+      const completeBuffer = Buffer.concat(upload.chunks);
+      const mimeType = upload.fileType || 'application/octet-stream';
+      const base64Data = `data:${mimeType};base64,${completeBuffer.toString('base64')}`;
 
-    // Assemble file when all chunks arrive
-    if (upload.receivedChunks.filter(Boolean).length === upload.totalChunks) {
-      const fullBuffer = Buffer.concat(upload.receivedChunks);
-      const dataUrl = `data:${upload.fileType};base64,${fullBuffer.toString('base64')}`;
-      
-      const isImage = upload.fileType.startsWith('image/');
-      const roomState = roomData[upload.room] || roomData['main-room'];
-
-      const msgObj = {
-        id: Date.now().toString(),
-        type: isImage ? 'image' : 'file',
-        replyTo: upload.replyTo,
-        role: upload.role,
+      const msgType = mimeType.startsWith('image/') ? 'image' : 'file';
+      const msgData = {
+        id: Date.now().toString() + '_' + Math.random().toString(36).substring(2, 7),
+        type: msgType,
+        role: socket.role || 'member',
+        replyTo: upload.replyTo || null,
         payload: {
           user: upload.user,
-          url: dataUrl,
+          url: base64Data,
           name: upload.fileName,
           size: upload.fileSize
         }
       };
 
-      roomState.messages.push(msgObj);
-      io.to(upload.room).emit('chat-message', msgObj);
+      chatHistory.push(msgData);
+      if (chatHistory.length > 200) chatHistory.shift();
+
+      io.to('main-room').emit('chat-message', msgData);
       socket.emit('upload-complete', { uploadId });
       delete activeUploads[uploadId];
     }
   });
 
-  socket.on('upload-cancel', ({ uploadId }) => {
-    if (activeUploads[uploadId]) {
-      delete activeUploads[uploadId];
-      socket.emit('upload-cancelled', { uploadId });
-    }
-  });
-
-  socket.on('chat-message', (data) => {
-    const { room, type, payload, replyTo } = data;
-    const roomState = roomData[room] || roomData['main-room'];
-    const userRole = socket.userData ? socket.userData.role : 'member';
-
-    if (type === 'text' && containsBadWords(payload.text)) {
-      if (userRole !== 'admin') {
-        const username = socket.userData.user;
-        const currentWarns = (roomState.userWarnings[username] || 0) + 1;
-        roomState.userWarnings[username] = currentWarns;
-
-        if (currentWarns >= 2) {
-          roomState.bannedUsers.add(username);
-          socket.emit('user-banned', 'You have been banned for repeated use of prohibited language.');
-          socket.disconnect();
-          return;
-        } else {
-          return socket.emit('warning-msg', `⚠️ Warning (${currentWarns}/2): Abusive language is strictly prohibited!`);
-        }
-      }
-    }
-
-    const msgObj = {
-      id: Date.now().toString(),
-      type,
-      replyTo,
-      role: userRole,
-      payload
-    };
-
-    roomState.messages.push(msgObj);
-    io.to(room).emit('chat-message', msgObj);
-  });
-
+  // Message Deletion & Admin Actions
   socket.on('delete-message', ({ room, msgId }) => {
-    const roomState = roomData[room] || roomData['main-room'];
-    roomState.messages = roomState.messages.filter(m => m.id !== msgId);
-    io.to(room).emit('message-deleted', { msgId });
+    const idx = chatHistory.findIndex(m => m.id === msgId);
+    if (idx !== -1) {
+      chatHistory.splice(idx, 1);
+      io.to(room).emit('message-deleted', { msgId });
+    }
   });
 
   socket.on('admin-clear-all-messages', ({ room }) => {
-    if (socket.userData && socket.userData.role === 'admin') {
-      const roomState = roomData[room] || roomData['main-room'];
-      roomState.messages = [];
+    if (socket.role === 'admin') {
+      chatHistory.length = 0;
       io.to(room).emit('all-messages-cleared');
     }
   });
 
   socket.on('admin-ban-user', ({ room, username }) => {
-    if (socket.userData && socket.userData.role === 'admin') {
-      const roomState = roomData[room] || roomData['main-room'];
-      roomState.bannedUsers.add(username);
-
-      for (let [sid, uObj] of Object.entries(roomState.users)) {
-        if (uObj.username === username) {
-          io.to(sid).emit('user-banned', 'You have been banned by an Admin.');
-          io.sockets.sockets.get(sid)?.disconnect();
-        }
-      }
-      socket.emit('admin-action-success', `User ${username} banned.`);
+    if (socket.role === 'admin') {
+      bannedUsers.add(username);
+      io.to(room).emit('chat-message', {
+        type: 'system',
+        payload: { text: `🚨 ${username} has been banned by Admin.` }
+      });
+      socket.emit('admin-action-success', `User ${username} has been banned.`);
     }
   });
 
   socket.on('admin-unban-user', ({ room, username }) => {
-    if (socket.userData && socket.userData.role === 'admin') {
-      const roomState = roomData[room] || roomData['main-room'];
-      roomState.bannedUsers.delete(username);
-      delete roomState.userWarnings[username];
-      socket.emit('admin-action-success', `User ${username} unbanned.`);
+    if (socket.role === 'admin') {
+      bannedUsers.delete(username);
+      delete userAbuseCounts[username];
+      socket.emit('admin-action-success', `User ${username} has been unbanned.`);
     }
   });
 
+  // Voice Call Signal Handlers
   socket.on('start-voice-call-announcement', ({ room }) => {
-    const sysMsg = {
-      id: Date.now().toString(),
+    io.to(room).emit('chat-message', {
       type: 'call-announcement',
-      payload: { text: `${socket.userData.user} started a group voice call!` }
-    };
-    const roomState = roomData[room] || roomData['main-room'];
-    roomState.messages.push(sysMsg);
-    io.to(room).emit('chat-message', sysMsg);
+      payload: { text: `📞 ${socket.username} started a group audio call.` }
+    });
   });
 
   socket.on('join-voice-call', ({ room }) => {
-    const roomState = roomData[room] || roomData['main-room'];
-    const callersInRoom = Object.values(roomState.callers);
+    socket.join(room + '_voice');
+    const clientsInCall = Array.from(io.sockets.adapter.rooms.get(room + '_voice') || [])
+      .filter(id => id !== socket.id)
+      .map(id => ({ socketId: id, username: io.sockets.sockets.get(id)?.username }));
 
-    socket.emit('existing-callers', callersInRoom);
-
-    roomState.callers[socket.id] = {
-      socketId: socket.id,
-      username: socket.userData.user
-    };
+    socket.emit('existing-callers', clientsInCall);
   });
 
   socket.on('webrtc-offer', ({ targetSocketId, offer }) => {
-    io.to(targetSocketId).emit('webrtc-offer', {
-      fromSocketId: socket.id,
-      fromUsername: socket.userData.user,
-      offer
-    });
+    io.to(targetSocketId).emit('webrtc-offer', { fromSocketId: socket.id, fromUsername: socket.username, offer });
   });
 
   socket.on('webrtc-answer', ({ targetSocketId, answer }) => {
-    io.to(targetSocketId).emit('webrtc-answer', {
-      fromSocketId: socket.id,
-      answer
-    });
+    io.to(targetSocketId).emit('webrtc-answer', { fromSocketId: socket.id, answer });
   });
 
   socket.on('webrtc-ice', ({ targetSocketId, candidate }) => {
-    io.to(targetSocketId).emit('webrtc-ice', {
-      fromSocketId: socket.id,
-      candidate
-    });
+    io.to(targetSocketId).emit('webrtc-ice', { fromSocketId: socket.id, candidate });
   });
 
   socket.on('leave-voice-call', () => {
-    handleVoiceLeave(socket);
+    socket.rooms.forEach(r => {
+      if (r.endsWith('_voice')) {
+        socket.leave(r);
+        socket.to(r).emit('caller-left', { socketId: socket.id });
+      }
+    });
   });
 
   socket.on('disconnect', () => {
-    handleVoiceLeave(socket);
-  });
-
-  function handleVoiceLeave(s) {
-    if (s.userData) {
-      const roomState = roomData[s.userData.room] || roomData['main-room'];
-      if (roomState.callers[s.id]) {
-        delete roomState.callers[s.id];
-        io.to(s.userData.room).emit('caller-left', { socketId: s.id });
+    socket.rooms.forEach(r => {
+      if (r.endsWith('_voice')) {
+        socket.to(r).emit('caller-left', { socketId: socket.id });
       }
-      delete roomState.users[s.id];
+    });
+    if (joinedUser) {
+      io.to('main-room').emit('chat-message', {
+        type: 'system',
+        payload: { text: `🔴 ${joinedUser} left the chat.` }
+      });
     }
-  }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
