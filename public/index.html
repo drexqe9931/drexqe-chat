@@ -45,12 +45,28 @@
     .action-btn:hover { opacity: 1; color: #fff; }
 
     .reply-quote { background: rgba(0,0,0,0.25); border-left: 4px solid #00a884; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 6px; }
-    .chat-image { max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; display: block; object-fit: cover; margin-top: 4px; }
+    .chat-image { max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; display: block; object-fit: cover; margin-top: 4px; transition: opacity 0.2s; }
+    .chat-image:hover { opacity: 0.9; }
 
     .call-banner { background: #182229; border: 1px solid #00a884; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 320px; }
 
     .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
     .reply-preview-bar { background: #111b21; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #00a884; font-size: 12px; }
+
+    /* Upload Progress Bar */
+    .upload-progress-container { background: #111b21; padding: 8px 12px; border-top: 1px solid #2a3942; display: flex; flex-direction: column; gap: 4px; }
+    .upload-info { display: flex; justify-content: space-between; font-size: 11px; color: #00a884; font-weight: 600; }
+    .upload-track { height: 6px; background: #2a3942; border-radius: 3px; overflow: hidden; width: 100%; }
+    .upload-fill { height: 100%; background: #00a884; width: 0%; transition: width 0.1s ease-out; }
+
+    /* WhatsApp Style Pre-Send Media Card */
+    .pre-send-card { background: #111b21; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid #00a884; border-bottom: 1px solid #2a3942; }
+    .pre-send-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
+    .pre-send-thumb { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; border: 1px solid #2a3942; background: #202c33; flex-shrink: 0; }
+    .pre-send-details { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+    .pre-send-name { font-size: 13px; font-weight: 600; color: #e9edef; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pre-send-size { font-size: 11px; color: #8696a0; }
+    .pre-send-cancel-btn { background: #ea0038; color: #fff; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; font-weight: bold; }
 
     .input-bar { padding: 8px 12px; display: flex; align-items: center; gap: 8px; min-height: 56px; }
     .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
@@ -70,6 +86,14 @@
     .modal-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2500; }
     .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
     .modal-card input, .modal-card select { background: #2a3942; border: 1px solid #3b4a54; padding: 10px; border-radius: 8px; color: #e9edef; outline: none; font-size: 14px; width: 100%; }
+
+    /* In-App Media Lightbox Modal */
+    .lightbox-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: space-between; align-items: center; z-index: 3000; padding: 16px; }
+    .lightbox-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; z-index: 3001; }
+    .lightbox-title { font-size: 14px; color: #e9edef; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 70%; }
+    .lightbox-body { flex: 1; display: flex; justify-content: center; align-items: center; width: 100%; overflow: hidden; }
+    .lightbox-img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    .lightbox-footer { width: 100%; display: flex; justify-content: center; padding: 12px; gap: 12px; }
 
     .wa-call-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; }
     .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; background: rgba(0,0,0,0.2); }
@@ -101,19 +125,43 @@
     <div class="chat-box" id="chatBox"></div>
 
     <div class="bottom-controls">
+      <!-- Reply Preview Bar -->
       <div class="reply-preview-bar" id="replyPreviewBar" style="display:none;">
         <span id="replyPreviewText">Replying to message...</span>
         <button class="action-btn" onclick="cancelReply()">✕</button>
       </div>
 
+      <!-- WhatsApp Pre-Send Selected File Card -->
+      <div class="pre-send-card" id="preSendCard" style="display:none;">
+        <div class="pre-send-info">
+          <img id="preSendThumb" class="pre-send-thumb" src="" alt="preview">
+          <div class="pre-send-details">
+            <span class="pre-send-name" id="preSendName">filename.ext</span>
+            <span class="pre-send-size" id="preSendSize">0 KB</span>
+          </div>
+        </div>
+        <button class="pre-send-cancel-btn" onclick="cancelPendingMediaSelection()" title="Cancel Media">✕</button>
+      </div>
+
+      <!-- Upload Progress Bar -->
+      <div class="upload-progress-container" id="uploadProgressContainer" style="display:none;">
+        <div class="upload-info">
+          <span id="uploadStatusText">Uploading media...</span>
+          <span id="uploadPercentText">0%</span>
+        </div>
+        <div class="upload-track">
+          <div class="upload-fill" id="uploadFill"></div>
+        </div>
+      </div>
+
       <div class="input-bar" id="standardInputBar">
         <button class="icon-btn" onclick="document.getElementById('fileInput').click()">📎</button>
-        <input type="file" id="fileInput" style="display:none;" onchange="handleFileUpload(event)">
+        <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)">
 
-        <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
+        <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendChatMessage()">
 
         <button class="icon-btn" id="micBtn" onclick="startVoiceRecording()">🎙️</button>
-        <button class="btn" onclick="sendMessage()">Send</button>
+        <button class="btn" onclick="sendChatMessage()">Send</button>
       </div>
 
       <div class="input-bar" id="recordingInputBar" style="display:none;">
@@ -167,6 +215,22 @@
     </div>
   </div>
 
+  <!-- In-App Lightbox Media Modal -->
+  <div class="lightbox-overlay" id="lightboxModal" style="display:none;">
+    <div class="lightbox-header">
+      <span class="lightbox-title" id="lightboxTitle">Image Preview</span>
+      <button class="action-btn" style="font-size:22px; color:#fff;" onclick="closeLightbox()">✕</button>
+    </div>
+    <div class="lightbox-body">
+      <img src="" id="lightboxImg" class="lightbox-img" alt="Media Preview">
+    </div>
+    <div class="lightbox-footer">
+      <a id="lightboxDownloadBtn" download="" href="" class="btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+        ⬇️ Download Media
+      </a>
+    </div>
+  </div>
+
   <div class="wa-call-screen" id="callScreen" style="display:none;">
     <div class="wa-call-header">
       <div style="color:#00a884; font-weight:bold;">🔒 End-to-End Encrypted Group Call</div>
@@ -190,6 +254,8 @@
     let currentUser = '';
     let currentRole = 'member';
     let selectedReply = null;
+    let pendingSelectedFile = null;
+    let activeUploadId = null;
 
     let mediaRecorder = null;
     let audioChunks = [];
@@ -207,7 +273,6 @@
     let analyser = null;
     let animFrame = null;
 
-    // Direct Google STUN servers with fast candidate pooling
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -227,6 +292,14 @@
     function togglePasskeyVisibility() {
       const field = document.getElementById('passkeyInput');
       field.type = field.type === 'password' ? 'text' : 'password';
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     function joinChat() {
@@ -279,6 +352,29 @@
       document.getElementById('chatBox').innerHTML = '';
     });
 
+    socket.on('upload-progress-ack', ({ uploadId, progress, uploadedBytes, totalBytes }) => {
+      if (uploadId === activeUploadId) {
+        document.getElementById('uploadProgressContainer').style.display = 'flex';
+        document.getElementById('uploadFill').style.width = `${progress}%`;
+        document.getElementById('uploadPercentText').innerText = `${progress}%`;
+        document.getElementById('uploadStatusText').innerText = `Uploading (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`;
+      }
+    });
+
+    socket.on('upload-complete', ({ uploadId }) => {
+      if (uploadId === activeUploadId) {
+        document.getElementById('uploadProgressContainer').style.display = 'none';
+        document.getElementById('uploadFill').style.width = '0%';
+        activeUploadId = null;
+      }
+    });
+
+    socket.on('upload-cancelled', ({ uploadId }) => {
+      document.getElementById('uploadProgressContainer').style.display = 'none';
+      document.getElementById('uploadFill').style.width = '0%';
+      activeUploadId = null;
+    });
+
     function renderMessage(msg) {
       const chatBox = document.getElementById('chatBox');
       const row = document.createElement('div');
@@ -301,10 +397,20 @@
         row.className = `msg-row ${isMe ? 'me' : 'other'}`;
 
         let contentHtml = '';
-        if (msg.type === 'text') contentHtml = `<div>${msg.payload.text}</div>`;
-        else if (msg.type === 'image') contentHtml = `<img src="${msg.payload.url}" class="chat-image" onclick="window.open('${msg.payload.url}')">`;
-        else if (msg.type === 'file') contentHtml = `<a href="${msg.payload.url}" download="${msg.payload.name}" style="color:#00a884;">📁 ${msg.payload.name}</a>`;
-        else if (msg.type === 'voice') contentHtml = `<audio controls src="${msg.payload.url}" style="max-width:220px;"></audio>`;
+        if (msg.type === 'text') {
+          contentHtml = `<div>${msg.payload.text}</div>`;
+        } else if (msg.type === 'image') {
+          contentHtml = `
+            <img src="${msg.payload.url}" class="chat-image" onclick="openLightbox('${msg.payload.url}', '${msg.payload.name || 'Image'}')">
+            <div style="font-size:10px; opacity:0.8; margin-top:4px;">${formatBytes(msg.payload.size || 0)}</div>
+          `;
+        } else if (msg.type === 'file') {
+          contentHtml = `
+            <a href="${msg.payload.url}" download="${msg.payload.name}" style="color:#00a884; font-weight:600; text-decoration:none;">📁 ${msg.payload.name} (${formatBytes(msg.payload.size || 0)})</a>
+          `;
+        } else if (msg.type === 'voice') {
+          contentHtml = `<audio controls src="${msg.payload.url}" style="max-width:220px;"></audio>`;
+        }
 
         let replyQuoteHtml = '';
         if (msg.replyTo) {
@@ -343,9 +449,93 @@
       document.getElementById('replyPreviewBar').style.display = 'none';
     }
 
-    function sendMessage() {
+    function openLightbox(url, name) {
+      document.getElementById('lightboxImg').src = url;
+      document.getElementById('lightboxTitle').innerText = name || 'Media Preview';
+      const dlBtn = document.getElementById('lightboxDownloadBtn');
+      dlBtn.href = url;
+      dlBtn.download = name || 'downloaded_media';
+      document.getElementById('lightboxModal').style.display = 'flex';
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightboxModal').style.display = 'none';
+      document.getElementById('lightboxImg').src = '';
+    }
+
+    // Pre-send WhatsApp Style Preview Card Selection
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      pendingSelectedFile = file;
+      document.getElementById('preSendName').innerText = file.name;
+      document.getElementById('preSendSize').innerText = formatBytes(file.size);
+
+      const thumb = document.getElementById('preSendThumb');
+      if (file.type.startsWith('image/')) {
+        thumb.src = URL.createObjectURL(file);
+        thumb.style.display = 'block';
+      } else {
+        thumb.src = '';
+        thumb.style.display = 'none';
+      }
+
+      document.getElementById('preSendCard').style.display = 'flex';
+    }
+
+    function cancelPendingMediaSelection() {
+      if (activeUploadId) {
+        socket.emit('upload-cancel', { uploadId: activeUploadId });
+      }
+      pendingSelectedFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('preSendCard').style.display = 'none';
+    }
+
+    // Fast Binary Chunked File Uploader (64KB chunks)
+    async function uploadFileInChunks(file) {
+      const chunkSize = 64 * 1024;
+      const totalChunks = Math.ceil(file.size / chunkSize);
+      const uploadId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 7);
+      activeUploadId = uploadId;
+
+      socket.emit('upload-start', {
+        uploadId,
+        fileName: file.name,
+        fileType: file.type || 'application/octet-stream',
+        fileSize: file.size,
+        totalChunks,
+        replyTo: selectedReply
+      });
+
+      for (let i = 0; i < totalChunks; i++) {
+        if (activeUploadId !== uploadId) break;
+        const start = i * chunkSize;
+        const end = Math.min(file.size, start + chunkSize);
+        const chunkBlob = file.slice(start, end);
+        const chunkArrayBuffer = await chunkBlob.arrayBuffer();
+
+        socket.emit('upload-chunk', {
+          uploadId,
+          chunkIndex: i,
+          chunkData: chunkArrayBuffer
+        });
+      }
+    }
+
+    function sendChatMessage() {
       const input = document.getElementById('msgInput');
       const text = input.value.trim();
+
+      if (pendingSelectedFile) {
+        uploadFileInChunks(pendingSelectedFile);
+        cancelPendingMediaSelection();
+        cancelReply();
+        input.value = '';
+        return;
+      }
+
       if (!text) return;
 
       socket.emit('chat-message', {
@@ -361,30 +551,6 @@
 
     function deleteMessage(msgId) {
       socket.emit('delete-message', { room: 'main-room', msgId });
-    }
-
-    function handleFileUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const fileData = evt.target.result;
-        const isImage = file.type.startsWith('image/');
-        
-        socket.emit('chat-message', {
-          room: 'main-room',
-          type: isImage ? 'image' : 'file',
-          replyTo: selectedReply,
-          payload: {
-            user: currentUser,
-            url: fileData,
-            name: file.name
-          }
-        });
-        cancelReply();
-      };
-      reader.readAsDataURL(file);
     }
 
     function setupAudioAnalyzer(stream, targetVisualizerId) {
@@ -517,7 +683,6 @@
       renderCallUserTile(currentUser, true, 'local');
 
       try {
-        // Enforce zero latency, mono channel & noise cancellation on microphone
         localStream = await navigator.mediaDevices.getUserMedia({
           video: false,
           audio: {

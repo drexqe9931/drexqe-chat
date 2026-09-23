@@ -5,8 +5,10 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
+// Increase buffer size to 500MB for large media transfers
 const io = new Server(server, {
-  maxHttpBufferSize: 1e8
+  maxHttpBufferSize: 5e8
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -30,6 +32,9 @@ const roomData = {
     callers: {}
   }
 };
+
+// Storage for chunked uploads in progress
+const activeUploads = {};
 
 function containsBadWords(text) {
   if (!text) return false;
@@ -63,6 +68,70 @@ io.on('connection', (socket) => {
     };
     roomState.messages.push(sysMsg);
     io.to(room).emit('chat-message', sysMsg);
+  });
+
+  // Handle Chunked Binary File Uploads
+  socket.on('upload-start', ({ uploadId, fileName, fileType, fileSize, totalChunks, replyTo }) => {
+    activeUploads[uploadId] = {
+      uploadId,
+      fileName,
+      fileType,
+      fileSize,
+      totalChunks,
+      replyTo,
+      receivedChunks: [],
+      receivedSize: 0,
+      user: socket.userData ? socket.userData.user : 'Unknown',
+      role: socket.userData ? socket.userData.role : 'member',
+      room: socket.userData ? socket.userData.room : 'main-room'
+    };
+  });
+
+  socket.on('upload-chunk', ({ uploadId, chunkIndex, chunkData }) => {
+    const upload = activeUploads[uploadId];
+    if (!upload) return;
+
+    const buffer = Buffer.from(chunkData);
+    upload.receivedChunks[chunkIndex] = buffer;
+    upload.receivedSize += buffer.length;
+
+    // Send back progress ACK to caller
+    const progress = Math.min(100, Math.round((upload.receivedSize / upload.fileSize) * 100));
+    socket.emit('upload-progress-ack', { uploadId, progress, uploadedBytes: upload.receivedSize, totalBytes: upload.fileSize });
+
+    // Assemble file when all chunks arrive
+    if (upload.receivedChunks.filter(Boolean).length === upload.totalChunks) {
+      const fullBuffer = Buffer.concat(upload.receivedChunks);
+      const dataUrl = `data:${upload.fileType};base64,${fullBuffer.toString('base64')}`;
+      
+      const isImage = upload.fileType.startsWith('image/');
+      const roomState = roomData[upload.room] || roomData['main-room'];
+
+      const msgObj = {
+        id: Date.now().toString(),
+        type: isImage ? 'image' : 'file',
+        replyTo: upload.replyTo,
+        role: upload.role,
+        payload: {
+          user: upload.user,
+          url: dataUrl,
+          name: upload.fileName,
+          size: upload.fileSize
+        }
+      };
+
+      roomState.messages.push(msgObj);
+      io.to(upload.room).emit('chat-message', msgObj);
+      socket.emit('upload-complete', { uploadId });
+      delete activeUploads[uploadId];
+    }
+  });
+
+  socket.on('upload-cancel', ({ uploadId }) => {
+    if (activeUploads[uploadId]) {
+      delete activeUploads[uploadId];
+      socket.emit('upload-cancelled', { uploadId });
+    }
   });
 
   socket.on('chat-message', (data) => {
