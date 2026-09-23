@@ -60,7 +60,6 @@
     .recording-dot { width: 10px; height: 10px; background: #ea0038; border-radius: 50%; animation: pulse 1s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-    /* Sound Visualizer Bars */
     .audio-visualizer { display: flex; align-items: center; gap: 3px; height: 24px; }
     .audio-bar { width: 4px; background: #00a884; border-radius: 2px; height: 4px; transition: height 0.05s ease-in-out; }
 
@@ -122,7 +121,6 @@
           <div class="recording-dot"></div>
           <span id="recordingTimer">00:00</span>
           
-          <!-- Animated audio wave container inside recording bar -->
           <div class="audio-visualizer" id="recVisualizer">
             <div class="audio-bar" style="background:#ea0038;"></div>
             <div class="audio-bar" style="background:#ea0038;"></div>
@@ -205,18 +203,18 @@
     let callTimerInterval = null;
     let callSeconds = 0;
 
-    // Web Audio Analyzer variables
     let audioCtx = null;
     let analyser = null;
     let animFrame = null;
 
-    // Standard STUN configuration for web RTC audio traversal across network/browsers
+    // Direct Google STUN servers with fast candidate pooling
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' }
-      ]
+      ],
+      iceCandidatePoolSize: 10
     };
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -389,7 +387,6 @@
       reader.readAsDataURL(file);
     }
 
-    // Sound level visualizer helper
     function setupAudioAnalyzer(stream, targetVisualizerId) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioCtx.createAnalyser();
@@ -493,7 +490,6 @@
       if (u) socket.emit('admin-unban-user', { room: 'main-room', username: u });
     }
 
-    // Render Call user tile with dynamic voice visualizer icon below username
     function renderCallUserTile(name, isMe, id) {
       const grid = document.getElementById('callGrid');
       let tile = document.getElementById(`call_tile_${id}`);
@@ -521,7 +517,17 @@
       renderCallUserTile(currentUser, true, 'local');
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Enforce zero latency, mono channel & noise cancellation on microphone
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            latency: 0
+          }
+        });
         setupAudioAnalyzer(localStream, 'viz_local');
         startCallTimer();
 
