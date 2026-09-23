@@ -26,10 +26,10 @@ io.on('connection', (socket) => {
 
   socket.on('join-room', ({ room, user, role, passkey }) => {
     // Passkey verification
-    if (role === 'admin' && passkey !== 'admin123') {
+    if (role === 'admin' && passkey !== 'M4nil@l019') {
       return socket.emit('auth-error', 'Incorrect Admin Passkey!');
     }
-    if (role === 'member' && passkey !== 'member123') {
+    if (role === 'member' && passkey !== '9460') {
       return socket.emit('auth-error', 'Incorrect Member Passkey!');
     }
 
