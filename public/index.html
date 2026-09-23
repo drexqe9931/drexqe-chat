@@ -2,297 +2,109 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Drexqe Group Chat</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    html, body { height: 100%; height: 100dvh; width: 100vw; overflow: hidden; background-color: #0b141a; color: #e9edef; }
-    
-    #app-container { display: flex; flex-direction: column; height: 100%; height: 100dvh; width: 100vw; position: relative; }
-
-    .header { background: #202c33; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; border-bottom: 1px solid #2a3942; z-index: 10; flex-shrink: 0; }
-    .header-info h2 { font-size: 16px; color: #e9edef; font-weight: 600; }
-    .header-info p { font-size: 11px; color: #8696a0; }
-    .header-actions { display: flex; gap: 8px; }
-
-    .btn { background: #00a884; color: #111b21; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: transform 0.12s, background-color 0.15s; }
-    .btn:hover { background: #00c69b; }
-    .btn:active { transform: scale(0.92); }
-    .btn-admin { background: #e5a100; color: #000; }
-    .btn-danger { background: #ea0038; color: #fff; }
-
-    .chat-box { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: #0b141a; }
-
-    .msg-row { display: flex; animation: slideIn 0.25s ease-out; margin-bottom: 2px; }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background-color: #111b21; color: #e9edef; height: 100vh; display: flex; flex-direction: column; }
+    #loginModal, #adminModal, #lightboxModal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .modal-box { background: #202c33; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+    .input-field { width: 100%; padding: 10px; background: #2a3942; border: none; border-radius: 6px; color: #fff; font-size: 14px; outline: none; }
+    .btn { padding: 10px; background: #00a884; border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
+    .btn-danger { background: #ea4335; }
+    .top-bar { background: #202c33; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; }
+    #chatBox { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .msg-row { display: flex; width: 100%; margin-bottom: 4px; }
     .msg-row.me { justify-content: flex-end; }
     .msg-row.other { justify-content: flex-start; }
-    .msg-row.system-row { justify-content: center; margin: 8px 0; }
-
-    .msg { max-width: 82%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; word-wrap: break-word; }
-    .msg.other { background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
-    .msg.me { background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
-    .msg.system { background: #182229; color: #00a884; font-size: 12px; border-radius: 6px; padding: 6px 12px; text-align: center; border: 1px solid rgba(0, 168, 132, 0.2); }
-    
-    .msg.admin-msg { border: 2px solid #e5a100; background: #2a2400; color: #fff; }
-    .admin-badge { background: #e5a100; color: #000; font-size: 9px; font-weight: bold; padding: 1px 4px; border-radius: 4px; margin-left: 4px; }
-
-    .msg-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; color: #8696a0; }
-    .msg-actions { display: flex; gap: 6px; }
-    .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; opacity: 0.7; color: #8696a0; }
-    .action-btn:hover { opacity: 1; color: #fff; }
-
-    .reply-quote { background: rgba(0,0,0,0.25); border-left: 4px solid #00a884; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 6px; }
-    .chat-image { max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; display: block; object-fit: cover; margin-top: 4px; transition: opacity 0.2s; }
-    .chat-image:hover { opacity: 0.9; }
-
-    .call-banner { background: #182229; border: 1px solid #00a884; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 320px; }
-
-    .bottom-controls { background: #202c33; border-top: 1px solid #2a3942; width: 100%; z-index: 10; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
-    .reply-preview-bar { background: #111b21; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #00a884; font-size: 12px; }
-
-    /* Upload Progress Bar */
-    .upload-progress-container { background: #111b21; padding: 8px 12px; border-top: 1px solid #2a3942; display: flex; flex-direction: column; gap: 4px; }
-    .upload-info { display: flex; justify-content: space-between; font-size: 11px; color: #00a884; font-weight: 600; }
-    .upload-track { height: 6px; background: #2a3942; border-radius: 3px; overflow: hidden; width: 100%; }
-    .upload-fill { height: 100%; background: #00a884; width: 0%; transition: width 0.1s ease-out; }
-
-    /* WhatsApp Style Pre-Send Media Card */
-    .pre-send-card { background: #111b21; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid #00a884; border-bottom: 1px solid #2a3942; }
-    .pre-send-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
-    .pre-send-thumb { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; border: 1px solid #2a3942; background: #202c33; flex-shrink: 0; }
-    .pre-send-details { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-    .pre-send-name { font-size: 13px; font-weight: 600; color: #e9edef; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pre-send-size { font-size: 11px; color: #8696a0; }
-    .pre-send-cancel-btn { background: #ea0038; color: #fff; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; font-weight: bold; }
-
-    .input-bar { padding: 8px 12px; display: flex; align-items: center; gap: 8px; min-height: 56px; }
-    .input-bar input[type="text"] { flex: 1; background: #2a3942; border: none; padding: 10px 14px; border-radius: 20px; color: #e9edef; font-size: 14px; outline: none; }
-    .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #8696a0; display: flex; align-items: center; justify-content: center; }
-
-    .recording-indicator { display: flex; align-items: center; gap: 10px; color: #ea0038; font-size: 13px; font-weight: bold; flex: 1; }
-    .recording-dot { width: 10px; height: 10px; background: #ea0038; border-radius: 50%; animation: pulse 1s infinite; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-
-    .audio-visualizer { display: flex; align-items: center; gap: 3px; height: 24px; }
-    .audio-bar { width: 4px; background: #00a884; border-radius: 2px; height: 4px; transition: height 0.05s ease-in-out; }
-
-    .password-wrapper { position: relative; width: 100%; }
-    .password-wrapper input { width: 100%; padding-right: 36px; }
-    .eye-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 16px; user-select: none; }
-
-    .modal-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2500; }
-    .modal-card { background: #222e35; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
-    .modal-card input, .modal-card select { background: #2a3942; border: 1px solid #3b4a54; padding: 10px; border-radius: 8px; color: #e9edef; outline: none; font-size: 14px; width: 100%; }
-
-    /* In-App Media Lightbox Modal */
-    .lightbox-overlay { position: fixed; top:0; left:0; width:100vw; height:100dvh; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: space-between; align-items: center; z-index: 3000; padding: 16px; }
-    .lightbox-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; z-index: 3001; }
-    .lightbox-title { font-size: 14px; color: #e9edef; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 70%; }
-    .lightbox-body { flex: 1; display: flex; justify-content: center; align-items: center; width: 100%; overflow: hidden; }
-    .lightbox-img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-    .lightbox-footer { width: 100%; display: flex; justify-content: center; padding: 12px; gap: 12px; }
-
-    .wa-call-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; z-index: 2000; }
-    .wa-call-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; color: #8696a0; font-size: 12px; background: rgba(0,0,0,0.2); }
-    .wa-call-grid { flex: 1; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; align-content: center; overflow-y: auto; }
-    .wa-call-tile { background: #1f2c34; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #2a3942; min-height: 150px; }
-    .wa-call-tile.speaking { border-color: #00a884; box-shadow: 0 0 15px rgba(0, 168, 132, 0.4); }
-    .wa-tile-name { font-size: 13px; font-weight: 600; color: #e9edef; margin-top: 6px; }
-
-    .wa-call-dock { background: #202c33; padding: 18px 24px calc(20px + env(safe-area-inset-bottom)); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: center; align-items: center; gap: 24px; }
-    .wa-dock-btn { width: 54px; height: 54px; border-radius: 50%; border: none; background: #2a3942; color: #e9edef; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .wa-dock-btn.active { background: #ea0038; color: #fff; }
-    .wa-dock-btn.end-call { background: #ea0038; color: #fff; width: 60px; height: 60px; }
+    .msg-row.system-row { justify-content: center; }
+    .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; position: relative; word-break: break-word; }
+    .msg.me { background: #005c4b; color: #e9edef; }
+    .msg.other { background: #202c33; color: #e9edef; }
+    .msg.system { background: rgba(255,255,255,0.1); color: #8696a0; font-size: 12px; border-radius: 12px; padding: 4px 12px; }
+    .msg-header { font-size: 11px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; color: #00a884; gap: 10px; }
+    .msg-actions { display: flex; gap: 4px; }
+    .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; }
+    .chat-image { max-width: 100%; max-height: 250px; border-radius: 6px; margin-top: 4px; cursor: pointer; object-fit: cover; }
+    .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid #00a884; padding: 4px 8px; font-size: 12px; border-radius: 4px; margin-bottom: 4px; }
+    #replyPreviewBar, #preSendCard, #uploadProgressContainer { background: #1f2c34; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #2a3942; font-size: 13px; }
+    #uploadProgressContainer { flex-direction: column; gap: 6px; align-items: stretch; }
+    .progress-bar-bg { width: 100%; background: #2a3942; height: 8px; border-radius: 4px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: #00a884; width: 0%; transition: width 0.1s ease; }
+    .bottom-bar { background: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
+    .audio-bar { width: 3px; background: #00a884; height: 10px; border-radius: 2px; }
   </style>
 </head>
 <body>
 
-  <div id="app-container">
-    <div class="header">
-      <div class="header-info">
-        <h2>Drexqe Group</h2>
-        <p id="userInfoSub">🔒 Tap here for group info</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-admin" id="adminPanelBtn" style="display:none;" onclick="openAdminModal()">⚙️ Admin</button>
-        <button class="btn" onclick="startGroupCall(true)">📞 Group Call</button>
-      </div>
-    </div>
-
-    <div class="chat-box" id="chatBox"></div>
-
-    <div class="bottom-controls">
-      <!-- Reply Preview Bar -->
-      <div class="reply-preview-bar" id="replyPreviewBar" style="display:none;">
-        <span id="replyPreviewText">Replying to message...</span>
-        <button class="action-btn" onclick="cancelReply()">✕</button>
-      </div>
-
-      <!-- WhatsApp Pre-Send Selected File Card -->
-      <div class="pre-send-card" id="preSendCard" style="display:none;">
-        <div class="pre-send-info">
-          <img id="preSendThumb" class="pre-send-thumb" src="" alt="preview">
-          <div class="pre-send-details">
-            <span class="pre-send-name" id="preSendName">filename.ext</span>
-            <span class="pre-send-size" id="preSendSize">0 KB</span>
-          </div>
-        </div>
-        <button class="pre-send-cancel-btn" onclick="cancelPendingMediaSelection()" title="Cancel Media">✕</button>
-      </div>
-
-      <!-- Upload Progress Bar -->
-      <div class="upload-progress-container" id="uploadProgressContainer" style="display:none;">
-        <div class="upload-info">
-          <span id="uploadStatusText">Uploading media...</span>
-          <span id="uploadPercentText">0%</span>
-        </div>
-        <div class="upload-track">
-          <div class="upload-fill" id="uploadFill"></div>
-        </div>
-      </div>
-
-      <div class="input-bar" id="standardInputBar">
-        <button class="icon-btn" onclick="document.getElementById('fileInput').click()">📎</button>
-        <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)">
-
-        <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendChatMessage()">
-
-        <button class="icon-btn" id="micBtn" onclick="startVoiceRecording()">🎙️</button>
-        <button class="btn" onclick="sendChatMessage()">Send</button>
-      </div>
-
-      <div class="input-bar" id="recordingInputBar" style="display:none;">
-        <div class="recording-indicator">
-          <div class="recording-dot"></div>
-          <span id="recordingTimer">00:00</span>
-          
-          <div class="audio-visualizer" id="recVisualizer">
-            <div class="audio-bar" style="background:#ea0038;"></div>
-            <div class="audio-bar" style="background:#ea0038;"></div>
-            <div class="audio-bar" style="background:#ea0038;"></div>
-            <div class="audio-bar" style="background:#ea0038;"></div>
-            <div class="audio-bar" style="background:#ea0038;"></div>
-          </div>
-        </div>
-        <button class="btn btn-danger" onclick="cancelVoiceRecording()">Cancel</button>
-        <button class="btn" onclick="stopAndSendVoiceRecording()">Send Voice</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="loginModal">
-    <div class="modal-card">
-      <h3 style="text-align:center;">Join Chat Gateway</h3>
-      <input type="text" id="usernameInput" placeholder="Enter Username">
-      <select id="roleSelect">
+  <div id="loginModal">
+    <div class="modal-box">
+      <h3>Join Drexqe Chat</h3>
+      <input type="text" id="usernameInput" class="input-field" placeholder="Username">
+      <select id="roleSelect" class="input-field">
         <option value="member">Member</option>
         <option value="admin">Admin</option>
       </select>
-      
-      <div class="password-wrapper">
-        <input type="password" id="passkeyInput" placeholder="Enter Passkey">
-        <span class="eye-icon" onclick="togglePasskeyVisibility()">👁️</span>
+      <input type="password" id="passkeyInput" class="input-field" placeholder="Passkey">
+      <button class="btn" onclick="joinChat()">Enter Chat</button>
+    </div>
+  </div>
+
+  <div class="top-bar">
+    <div>
+      <div style="font-weight: bold;">Drexqe Group</div>
+      <div id="userInfoSub" style="font-size: 11px; color: #8696a0;">Disconnected</div>
+    </div>
+    <div>
+      <button id="adminPanelBtn" class="btn" style="display:none; padding: 4px 8px; font-size: 12px;" onclick="openAdminModal()">Admin</button>
+      <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="startGroupCall(true)">Group Call</button>
+    </div>
+  </div>
+
+  <div id="chatBox"></div>
+
+  <div id="replyPreviewBar" style="display:none;">
+    <span id="replyPreviewText"></span>
+    <button class="action-btn" onclick="cancelReply()">❌</button>
+  </div>
+
+  <div id="preSendCard" style="display:none;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <img id="preSendThumb" style="width:40px; height:40px; border-radius:4px; object-fit:cover; display:none;" />
+      <div>
+        <div id="preSendName" style="font-weight:bold;"></div>
+        <div id="preSendSize" style="font-size:11px; color:#8696a0;"></div>
       </div>
+    </div>
+    <button class="action-btn" onclick="cancelPendingMediaSelection()">❌</button>
+  </div>
 
-      <button class="btn" onclick="joinChat()">Join Room</button>
+  <div id="uploadProgressContainer" style="display:none;">
+    <div style="display:flex; justify-content:space-between; font-size:12px;">
+      <span id="uploadStatusText">Uploading...</span>
+      <span id="uploadPercentText">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div id="uploadFill" class="progress-bar-fill"></div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="adminModal" style="display:none;">
-    <div class="modal-card">
-      <h3 style="text-align:center;">Admin Control Panel</h3>
-      <button class="btn btn-danger" onclick="adminClearAllMessages()">🗑️ Clear All Messages</button>
-      <hr style="border-color:#3b4a54;">
-      <input type="text" id="banUserInput" placeholder="Username to Ban / Unban">
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-danger" style="flex:1;" onclick="adminBanUser()">Ban User</button>
-        <button class="btn" style="flex:1;" onclick="adminUnbanUser()">Unban User</button>
-      </div>
-      <button class="btn" style="background:#2a3942; color:#fff;" onclick="closeAdminModal()">Close Panel</button>
-    </div>
+  <div class="bottom-bar" id="standardInputBar">
+    <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)">
+    <button class="action-btn" style="font-size:20px;" onclick="document.getElementById('fileInput').click()">📎</button>
+    <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+    <button class="action-btn" style="font-size:20px;" onclick="startVoiceRecording()">🎙️</button>
+    <button class="btn" style="padding: 8px 16px;" onclick="sendChatMessage()">Send</button>
   </div>
-
-  <!-- In-App Lightbox Media Modal -->
-  <div class="lightbox-overlay" id="lightboxModal" style="display:none;">
-    <div class="lightbox-header">
-      <span class="lightbox-title" id="lightboxTitle">Image Preview</span>
-      <button class="action-btn" style="font-size:22px; color:#fff;" onclick="closeLightbox()">✕</button>
-    </div>
-    <div class="lightbox-body">
-      <img src="" id="lightboxImg" class="lightbox-img" alt="Media Preview">
-    </div>
-    <div class="lightbox-footer">
-      <a id="lightboxDownloadBtn" download="" href="" class="btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-        ⬇️ Download Media
-      </a>
-    </div>
-  </div>
-
-  <div class="wa-call-screen" id="callScreen" style="display:none;">
-    <div class="wa-call-header">
-      <div style="color:#00a884; font-weight:bold;">🔒 End-to-End Encrypted Group Call</div>
-      <div id="callTimer">00:00</div>
-    </div>
-
-    <div class="wa-call-grid" id="callGrid"></div>
-
-    <div class="wa-call-dock">
-      <button class="wa-dock-btn" id="speakerBtn" onclick="toggleSpeaker()">🔊</button>
-      <button class="wa-dock-btn" id="muteBtn" onclick="toggleMute()">🎤</button>
-      <button class="wa-dock-btn end-call" onclick="leaveGroupCall()">🔴</button>
-    </div>
-  </div>
-
-  <div id="remoteAudioContainer" style="display:none;"></div>
 
   <script>
     const socket = io();
-
     let currentUser = '';
     let currentRole = 'member';
     let selectedReply = null;
     let pendingSelectedFile = null;
     let activeUploadId = null;
-
-    let mediaRecorder = null;
-    let audioChunks = [];
-    let recTimerInterval = null;
-    let recSeconds = 0;
-
-    let localStream = null;
-    let peerConnections = {};
-    let isMuted = false;
-    let isSpeakerOn = true;
-    let callTimerInterval = null;
-    let callSeconds = 0;
-
-    let audioCtx = null;
-    let analyser = null;
-    let animFrame = null;
-
-    const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
-      ],
-      iceCandidatePoolSize: 10
-    };
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedUser = localStorage.getItem('drexqe_user');
-      const savedRole = localStorage.getItem('drexqe_role');
-      if (savedUser) document.getElementById('usernameInput').value = savedUser;
-      if (savedRole) document.getElementById('roleSelect').value = savedRole;
-    });
-
-    function togglePasskeyVisibility() {
-      const field = document.getElementById('passkeyInput');
-      field.type = field.type === 'password' ? 'text' : 'password';
-    }
 
     function formatBytes(bytes) {
       if (bytes === 0) return '0 Bytes';
@@ -306,74 +118,26 @@
       const user = document.getElementById('usernameInput').value.trim();
       const role = document.getElementById('roleSelect').value;
       const passkey = document.getElementById('passkeyInput').value.trim();
-
       if (!user || !passkey) return alert('Fill in all fields.');
 
       currentUser = user;
       currentRole = role;
 
-      localStorage.setItem('drexqe_user', user);
-      localStorage.setItem('drexqe_role', role);
-
-      socket.emit('join-room', {
-        room: 'main-room',
-        user: user,
-        role: role,
-        passkey: passkey
-      });
+      socket.emit('join-room', { room: 'main-room', user, role, passkey });
     }
 
     socket.on('auth-success', () => {
       document.getElementById('loginModal').style.display = 'none';
       document.getElementById('userInfoSub').innerText = `${currentUser} (${currentRole}) • Active`;
-      if (currentRole === 'admin') {
-        document.getElementById('adminPanelBtn').style.display = 'inline-block';
-      }
+      if (currentRole === 'admin') document.getElementById('adminPanelBtn').style.display = 'inline-block';
     });
 
-    socket.on('auth-error', (msg) => alert(msg));
-    socket.on('user-banned', (msg) => { alert(msg); location.reload(); });
-    socket.on('warning-msg', (msg) => alert(msg));
-    socket.on('admin-action-success', (msg) => alert(msg));
-
+    socket.on('auth-error', alert);
     socket.on('chat-history', (history) => {
       document.getElementById('chatBox').innerHTML = '';
       history.forEach(renderMessage);
     });
-
     socket.on('chat-message', renderMessage);
-
-    socket.on('message-deleted', ({ msgId }) => {
-      const el = document.getElementById(`msg_${msgId}`);
-      if (el) el.remove();
-    });
-
-    socket.on('all-messages-cleared', () => {
-      document.getElementById('chatBox').innerHTML = '';
-    });
-
-    socket.on('upload-progress-ack', ({ uploadId, progress, uploadedBytes, totalBytes }) => {
-      if (uploadId === activeUploadId) {
-        document.getElementById('uploadProgressContainer').style.display = 'flex';
-        document.getElementById('uploadFill').style.width = `${progress}%`;
-        document.getElementById('uploadPercentText').innerText = `${progress}%`;
-        document.getElementById('uploadStatusText').innerText = `Uploading (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`;
-      }
-    });
-
-    socket.on('upload-complete', ({ uploadId }) => {
-      if (uploadId === activeUploadId) {
-        document.getElementById('uploadProgressContainer').style.display = 'none';
-        document.getElementById('uploadFill').style.width = '0%';
-        activeUploadId = null;
-      }
-    });
-
-    socket.on('upload-cancelled', ({ uploadId }) => {
-      document.getElementById('uploadProgressContainer').style.display = 'none';
-      document.getElementById('uploadFill').style.width = '0%';
-      activeUploadId = null;
-    });
 
     function renderMessage(msg) {
       const chatBox = document.getElementById('chatBox');
@@ -383,87 +147,29 @@
       if (msg.type === 'system') {
         row.className = 'msg-row system-row';
         row.innerHTML = `<div class="msg system">${msg.payload.text}</div>`;
-      } else if (msg.type === 'call-announcement') {
-        row.className = 'msg-row system-row';
-        row.innerHTML = `
-          <div class="call-banner">
-            <span style="font-size:12px;">${msg.payload.text}</span>
-            <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="startGroupCall(false)">Join Call</button>
-          </div>
-        `;
       } else {
         const isMe = msg.payload.user === currentUser;
-        const isAdmin = msg.role === 'admin';
         row.className = `msg-row ${isMe ? 'me' : 'other'}`;
 
         let contentHtml = '';
-        if (msg.type === 'text') {
-          contentHtml = `<div>${msg.payload.text}</div>`;
-        } else if (msg.type === 'image') {
-          contentHtml = `
-            <img src="${msg.payload.url}" class="chat-image" onclick="openLightbox('${msg.payload.url}', '${msg.payload.name || 'Image'}')">
-            <div style="font-size:10px; opacity:0.8; margin-top:4px;">${formatBytes(msg.payload.size || 0)}</div>
-          `;
+        if (msg.type === 'text') contentHtml = `<div>${msg.payload.text}</div>`;
+        else if (msg.type === 'image') {
+          contentHtml = `<img src="${msg.payload.url}" class="chat-image"><div style="font-size:10px; opacity:0.8;">${formatBytes(msg.payload.size || 0)}</div>`;
         } else if (msg.type === 'file') {
-          contentHtml = `
-            <a href="${msg.payload.url}" download="${msg.payload.name}" style="color:#00a884; font-weight:600; text-decoration:none;">📁 ${msg.payload.name} (${formatBytes(msg.payload.size || 0)})</a>
-          `;
-        } else if (msg.type === 'voice') {
-          contentHtml = `<audio controls src="${msg.payload.url}" style="max-width:220px;"></audio>`;
+          contentHtml = `<a href="${msg.payload.url}" download="${msg.payload.name}" style="color:#00a884; font-weight:600;">📁 ${msg.payload.name} (${formatBytes(msg.payload.size || 0)})</a>`;
         }
-
-        let replyQuoteHtml = '';
-        if (msg.replyTo) {
-          replyQuoteHtml = `<div class="reply-quote"><b>${msg.replyTo.user}:</b> ${msg.replyTo.text}</div>`;
-        }
-
-        const canDelete = isMe || currentRole === 'admin';
 
         row.innerHTML = `
-          <div class="msg ${isMe ? 'me' : 'other'} ${isAdmin ? 'admin-msg' : ''}">
-            <div class="msg-header">
-              <span>${msg.payload.user} ${isAdmin ? '<span class="admin-badge">ADMIN</span>' : ''}</span>
-              <div class="msg-actions">
-                <button class="action-btn" onclick="setReply('${msg.payload.user}', '${msg.payload.text || msg.type}')">↩️</button>
-                ${canDelete ? `<button class="action-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>` : ''}
-              </div>
-            </div>
-            ${replyQuoteHtml}
+          <div class="msg ${isMe ? 'me' : 'other'}">
+            <div class="msg-header"><span>${msg.payload.user}</span></div>
             ${contentHtml}
           </div>
         `;
       }
-
       chatBox.appendChild(row);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    function setReply(user, text) {
-      selectedReply = { user, text };
-      document.getElementById('replyPreviewText').innerText = `Replying to ${user}: ${text.substring(0, 30)}...`;
-      document.getElementById('replyPreviewBar').style.display = 'flex';
-    }
-
-    function cancelReply() {
-      selectedReply = null;
-      document.getElementById('replyPreviewBar').style.display = 'none';
-    }
-
-    function openLightbox(url, name) {
-      document.getElementById('lightboxImg').src = url;
-      document.getElementById('lightboxTitle').innerText = name || 'Media Preview';
-      const dlBtn = document.getElementById('lightboxDownloadBtn');
-      dlBtn.href = url;
-      dlBtn.download = name || 'downloaded_media';
-      document.getElementById('lightboxModal').style.display = 'flex';
-    }
-
-    function closeLightbox() {
-      document.getElementById('lightboxModal').style.display = 'none';
-      document.getElementById('lightboxImg').src = '';
-    }
-
-    // Pre-send WhatsApp Style Preview Card Selection
     function handleFileSelect(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -480,25 +186,26 @@
         thumb.src = '';
         thumb.style.display = 'none';
       }
-
       document.getElementById('preSendCard').style.display = 'flex';
     }
 
     function cancelPendingMediaSelection() {
-      if (activeUploadId) {
-        socket.emit('upload-cancel', { uploadId: activeUploadId });
-      }
       pendingSelectedFile = null;
       document.getElementById('fileInput').value = '';
       document.getElementById('preSendCard').style.display = 'none';
     }
 
-    // Fast Binary Chunked File Uploader (64KB chunks)
+    // Accelerated 256KB Chunk Uploader with Live Progress Bar
     async function uploadFileInChunks(file) {
-      const chunkSize = 64 * 1024;
+      const chunkSize = 256 * 1024; // 256KB chunks for maximum Socket.IO throughput
       const totalChunks = Math.ceil(file.size / chunkSize);
       const uploadId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 7);
       activeUploadId = uploadId;
+
+      document.getElementById('uploadProgressContainer').style.display = 'flex';
+      document.getElementById('uploadFill').style.width = '0%';
+      document.getElementById('uploadPercentText').innerText = '0%';
+      document.getElementById('uploadStatusText').innerText = `Uploading ${file.name}...`;
 
       socket.emit('upload-start', {
         uploadId,
@@ -511,18 +218,29 @@
 
       for (let i = 0; i < totalChunks; i++) {
         if (activeUploadId !== uploadId) break;
+
         const start = i * chunkSize;
         const end = Math.min(file.size, start + chunkSize);
         const chunkBlob = file.slice(start, end);
         const chunkArrayBuffer = await chunkBlob.arrayBuffer();
 
-        socket.emit('upload-chunk', {
-          uploadId,
-          chunkIndex: i,
-          chunkData: chunkArrayBuffer
-        });
+        socket.emit('upload-chunk', { uploadId, chunkIndex: i, chunkData: chunkArrayBuffer });
+
+        // Update UI progress dynamically
+        const progress = Math.round(((i + 1) / totalChunks) * 100);
+        document.getElementById('uploadFill').style.width = `${progress}%`;
+        document.getElementById('uploadPercentText').innerText = `${progress}%`;
+        document.getElementById('uploadStatusText').innerText = `Uploading (${formatBytes(end)} / ${formatBytes(file.size)})`;
       }
     }
+
+    socket.on('upload-complete', ({ uploadId }) => {
+      if (uploadId === activeUploadId) {
+        document.getElementById('uploadProgressContainer').style.display = 'none';
+        document.getElementById('uploadFill').style.width = '0%';
+        activeUploadId = null;
+      }
+    });
 
     function sendChatMessage() {
       const input = document.getElementById('msgInput');
@@ -531,7 +249,6 @@
       if (pendingSelectedFile) {
         uploadFileInChunks(pendingSelectedFile);
         cancelPendingMediaSelection();
-        cancelReply();
         input.value = '';
         return;
       }
@@ -541,292 +258,9 @@
       socket.emit('chat-message', {
         room: 'main-room',
         type: 'text',
-        replyTo: selectedReply,
         payload: { user: currentUser, text: text }
       });
-
       input.value = '';
-      cancelReply();
-    }
-
-    function deleteMessage(msgId) {
-      socket.emit('delete-message', { room: 'main-room', msgId });
-    }
-
-    function setupAudioAnalyzer(stream, targetVisualizerId) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioCtx.createAnalyser();
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-      analyser.fftSize = 32;
-
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      function update() {
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-        let average = sum / bufferLength;
-
-        const container = document.getElementById(targetVisualizerId);
-        if (container) {
-          const bars = container.querySelectorAll('.audio-bar');
-          bars.forEach((bar, idx) => {
-            let val = (dataArray[idx % bufferLength] || average) / 255 * 28;
-            bar.style.height = `${Math.max(4, val)}px`;
-          });
-        }
-        animFrame = requestAnimationFrame(update);
-      }
-      update();
-    }
-
-    function stopAudioAnalyzer() {
-      if (animFrame) cancelAnimationFrame(animFrame);
-      if (audioCtx) { audioCtx.close(); audioCtx = null; }
-    }
-
-    async function startVoiceRecording() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-        mediaRecorder.start();
-
-        setupAudioAnalyzer(stream, 'recVisualizer');
-
-        document.getElementById('standardInputBar').style.display = 'none';
-        document.getElementById('recordingInputBar').style.display = 'flex';
-
-        recSeconds = 0;
-        recTimerInterval = setInterval(() => {
-          recSeconds++;
-          const mins = String(Math.floor(recSeconds / 60)).padStart(2, '0');
-          const secs = String(recSeconds % 60).padStart(2, '0');
-          document.getElementById('recordingTimer').innerText = `${mins}:${secs}`;
-        }, 1000);
-      } catch (e) {
-        alert('Microphone access denied or unavailable.');
-      }
-    }
-
-    function cancelVoiceRecording() {
-      if (mediaRecorder) mediaRecorder.stop();
-      stopAudioAnalyzer();
-      clearInterval(recTimerInterval);
-      document.getElementById('standardInputBar').style.display = 'flex';
-      document.getElementById('recordingInputBar').style.display = 'none';
-    }
-
-    function stopAndSendVoiceRecording() {
-      if (!mediaRecorder) return;
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          socket.emit('chat-message', {
-            room: 'main-room',
-            type: 'voice',
-            replyTo: selectedReply,
-            payload: { user: currentUser, url: reader.result }
-          });
-          cancelReply();
-        };
-        reader.readAsDataURL(audioBlob);
-      };
-      mediaRecorder.stop();
-      stopAudioAnalyzer();
-      clearInterval(recTimerInterval);
-      document.getElementById('standardInputBar').style.display = 'flex';
-      document.getElementById('recordingInputBar').style.display = 'none';
-    }
-
-    function openAdminModal() { document.getElementById('adminModal').style.display = 'flex'; }
-    function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
-    function adminClearAllMessages() { socket.emit('admin-clear-all-messages', { room: 'main-room' }); closeAdminModal(); }
-    function adminBanUser() {
-      const u = document.getElementById('banUserInput').value.trim();
-      if (u) socket.emit('admin-ban-user', { room: 'main-room', username: u });
-    }
-    function adminUnbanUser() {
-      const u = document.getElementById('banUserInput').value.trim();
-      if (u) socket.emit('admin-unban-user', { room: 'main-room', username: u });
-    }
-
-    function renderCallUserTile(name, isMe, id) {
-      const grid = document.getElementById('callGrid');
-      let tile = document.getElementById(`call_tile_${id}`);
-      if (!tile) {
-        tile = document.createElement('div');
-        tile.className = 'wa-call-tile';
-        tile.id = `call_tile_${id}`;
-        grid.appendChild(tile);
-      }
-      tile.innerHTML = `
-        <div style="font-size: 32px;">👤</div>
-        <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
-        <div class="audio-visualizer" id="viz_${id}" style="margin-top:6px;">
-          <div class="audio-bar"></div>
-          <div class="audio-bar"></div>
-          <div class="audio-bar"></div>
-          <div class="audio-bar"></div>
-        </div>
-      `;
-    }
-
-    async function startGroupCall(isInitiatorAnnouncement = false) {
-      document.getElementById('callGrid').innerHTML = '';
-      document.getElementById('callScreen').style.display = 'flex';
-      renderCallUserTile(currentUser, true, 'local');
-
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          video: false,
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-            latency: 0
-          }
-        });
-        setupAudioAnalyzer(localStream, 'viz_local');
-        startCallTimer();
-
-        if (isInitiatorAnnouncement) {
-          socket.emit('start-voice-call-announcement', { room: 'main-room' });
-        }
-        socket.emit('join-voice-call', { room: 'main-room' });
-      } catch (err) {
-        alert('Microphone permission required: ' + err.message);
-        leaveGroupCall();
-      }
-    }
-
-    socket.on('existing-callers', (callers) => {
-      callers.forEach(caller => {
-        renderCallUserTile(caller.username, false, caller.socketId);
-        createPeerConnection(caller.socketId, caller.username, true);
-      });
-    });
-
-    socket.on('webrtc-offer', async ({ fromSocketId, fromUsername, offer }) => {
-      renderCallUserTile(fromUsername, false, fromSocketId);
-      const pc = createPeerConnection(fromSocketId, fromUsername, false);
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('webrtc-answer', { targetSocketId: fromSocketId, answer });
-    });
-
-    socket.on('webrtc-answer', async ({ fromSocketId, answer }) => {
-      const pc = peerConnections[fromSocketId];
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
-    });
-
-    socket.on('webrtc-ice', async ({ fromSocketId, candidate }) => {
-      const pc = peerConnections[fromSocketId];
-      if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    socket.on('caller-left', ({ socketId }) => {
-      if (peerConnections[socketId]) {
-        peerConnections[socketId].close();
-        delete peerConnections[socketId];
-      }
-      const tile = document.getElementById(`call_tile_${socketId}`);
-      if (tile) tile.remove();
-      const audioEl = document.getElementById(`audio_${socketId}`);
-      if (audioEl) audioEl.remove();
-    });
-
-    function createPeerConnection(targetSocketId, targetUsername, isInitiator) {
-      const pc = new RTCPeerConnection(rtcConfig);
-      peerConnections[targetSocketId] = pc;
-
-      if (localStream) {
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      }
-
-      pc.ontrack = (event) => {
-        let audioEl = document.getElementById(`audio_${targetSocketId}`);
-        if (!audioEl) {
-          audioEl = document.createElement('audio');
-          audioEl.id = `audio_${targetSocketId}`;
-          audioEl.autoplay = true;
-          audioEl.setAttribute('playsinline', 'true');
-          document.getElementById('remoteAudioContainer').appendChild(audioEl);
-        }
-        audioEl.srcObject = event.streams[0];
-        audioEl.play().catch(e => console.log('Autoplay play error:', e));
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('webrtc-ice', { targetSocketId, candidate: event.candidate });
-        }
-      };
-
-      if (isInitiator) {
-        pc.onnegotiationneeded = async () => {
-          try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit('webrtc-offer', { targetSocketId, offer });
-          } catch (e) { console.error(e); }
-        };
-      }
-
-      return pc;
-    }
-
-    function startCallTimer() {
-      callSeconds = 0;
-      clearInterval(callTimerInterval);
-      callTimerInterval = setInterval(() => {
-        callSeconds++;
-        const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
-        const secs = String(callSeconds % 60).padStart(2, '0');
-        document.getElementById('callTimer').innerText = `${mins}:${secs}`;
-      }, 1000);
-    }
-
-    function toggleMute() {
-      isMuted = !isMuted;
-      if (localStream) localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-      const btn = document.getElementById('muteBtn');
-      btn.innerText = isMuted ? '🔇' : '🎤';
-      btn.classList.toggle('active', isMuted);
-    }
-
-    function toggleSpeaker() {
-      isSpeakerOn = !isSpeakerOn;
-      const audioEls = document.querySelectorAll('#remoteAudioContainer audio');
-      audioEls.forEach(el => el.muted = !isSpeakerOn);
-      const btn = document.getElementById('speakerBtn');
-      btn.innerText = isSpeakerOn ? '🔊' : '🔈';
-      btn.classList.toggle('active', !isSpeakerOn);
-    }
-
-    function leaveGroupCall() {
-      clearInterval(callTimerInterval);
-      stopAudioAnalyzer();
-      socket.emit('leave-voice-call');
-
-      Object.keys(peerConnections).forEach(sid => peerConnections[sid].close());
-      peerConnections = {};
-
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-
-      document.getElementById('remoteAudioContainer').innerHTML = '';
-      document.getElementById('callGrid').innerHTML = '';
-      document.getElementById('callScreen').style.display = 'none';
     }
   </script>
 </body>
