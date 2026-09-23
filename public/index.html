@@ -2,46 +2,91 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Drexqe Group Chat</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background-color: #111b21; color: #e9edef; height: 100vh; display: flex; flex-direction: column; }
-    #loginModal, #adminModal, #lightboxModal, #callScreen { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 999; }
-    .modal-box { background: #202c33; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
-    .input-field { width: 100%; padding: 10px; background: #2a3942; border: none; border-radius: 6px; color: #fff; font-size: 14px; outline: none; }
-    .btn { padding: 10px; background: #00a884; border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
-    .btn-danger { background: #ea4335; }
-    .top-bar { background: #202c33; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; }
-    #chatBox { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-    .msg-row { display: flex; width: 100%; margin-bottom: 4px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    
+    /* Fix #3: Use 100dvh to eliminate mobile browser navigation scrolling */
+    html, body { height: 100dvh; width: 100vw; overflow: hidden; background-color: #111b21; color: #e9edef; }
+    body { display: flex; flex-direction: column; }
+
+    /* Fix #1: Solid plain dark background for group call overlay (no transparency) */
+    #callScreen { position: fixed; inset: 0; background: #111b21; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; z-index: 9999; }
+
+    #loginModal, #adminModal, #lightboxModal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .modal-box { background: #202c33; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); animation: slideUp 0.25s cubic-bezier(0.1, 0.9, 0.2, 1); }
+    .input-field { width: 100%; padding: 12px; background: #2a3942; border: 1px solid transparent; border-radius: 8px; color: #fff; font-size: 14px; outline: none; transition: border-color 0.2s; }
+    .input-field:focus { border-color: #00a884; }
+    .btn { padding: 10px 16px; background: #00a884; border: none; border-radius: 8px; color: #111b21; font-weight: 700; cursor: pointer; transition: transform 0.1s ease, background-color 0.2s ease; }
+    .btn:active { transform: scale(0.96); }
+    .btn-danger { background: #ea4335; color: #fff; }
+
+    .top-bar { background: #202c33; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; flex-shrink: 0; }
+    #chatBox { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
+
+    /* Fix #4: Message sending animations */
+    @keyframes msgPopIn {
+      0% { opacity: 0; transform: translateY(12px) scale(0.96); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes slideUp {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-row { display: flex; width: 100%; margin-bottom: 2px; animation: msgPopIn 0.22s cubic-bezier(0.1, 0.9, 0.2, 1); }
     .msg-row.me { justify-content: flex-end; }
     .msg-row.other { justify-content: flex-start; }
     .msg-row.system-row { justify-content: center; }
-    .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14px; position: relative; word-break: break-word; }
-    .msg.me { background: #005c4b; color: #e9edef; }
-    .msg.other { background: #202c33; color: #e9edef; }
-    .msg.system { background: rgba(255,255,255,0.1); color: #8696a0; font-size: 12px; border-radius: 12px; padding: 4px 12px; }
-    /* Feature #3: Special Stylish Admin Message Box */
-    .msg.admin-msg { background: linear-gradient(135deg, #1f2c34 0%, #0d1418 100%); border: 1.5px solid #00a884; box-shadow: 0 0 10px rgba(0,168,132,0.3); }
-    .admin-badge { background: #00a884; color: #111b21; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
-    .msg-header { font-size: 11px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; color: #00a884; gap: 10px; }
-    .msg-actions { display: flex; gap: 4px; }
-    .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; }
-    .chat-image { max-width: 100%; max-height: 250px; border-radius: 6px; margin-top: 4px; cursor: pointer; object-fit: cover; }
-    .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid #00a884; padding: 4px 8px; font-size: 12px; border-radius: 4px; margin-bottom: 4px; }
-    #replyPreviewBar, #preSendCard, #uploadProgressContainer { background: #1f2c34; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #2a3942; font-size: 13px; }
+    
+    .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; position: relative; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+    .msg.me { background: #005c4b; color: #e9edef; border-top-right-radius: 2px; }
+    .msg.other { background: #202c33; color: #e9edef; border-top-left-radius: 2px; }
+    .msg.system { background: rgba(255,255,255,0.08); color: #8696a0; font-size: 12px; border-radius: 12px; padding: 4px 12px; }
+
+    /* Fix #2: Stylish Crown Admin Message styling */
+    .msg.admin-msg { 
+      background: linear-gradient(135deg, #0f2b23 0%, #1a3a30 100%); 
+      border: 1px solid #00a884; 
+      box-shadow: 0 0 12px rgba(0, 168, 132, 0.35); 
+    }
+    .admin-crown-badge { 
+      background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); 
+      color: #111b21; 
+      font-size: 10px; 
+      font-weight: 800; 
+      padding: 2px 7px; 
+      border-radius: 12px; 
+      margin-left: 6px; 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 2px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4); 
+    }
+
+    .msg-header { font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; color: #00a884; gap: 10px; }
+    .msg-actions { display: flex; gap: 6px; opacity: 0.8; }
+    .action-btn { background: none; border: none; cursor: pointer; font-size: 14px; transition: transform 0.15s ease; }
+    .action-btn:active { transform: scale(1.2); }
+    .chat-image { max-width: 100%; max-height: 250px; border-radius: 8px; margin-top: 4px; cursor: pointer; object-fit: cover; }
+    .reply-quote { background: rgba(0,0,0,0.25); border-left: 3px solid #00a884; padding: 4px 8px; font-size: 12px; border-radius: 4px; margin-bottom: 6px; }
+    
+    #replyPreviewBar, #preSendCard, #uploadProgressContainer { background: #1f2c34; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #2a3942; font-size: 13px; animation: slideUp 0.18s ease; flex-shrink: 0; }
     #uploadProgressContainer { flex-direction: column; gap: 6px; align-items: stretch; }
     .progress-bar-bg { width: 100%; background: #2a3942; height: 8px; border-radius: 4px; overflow: hidden; }
     .progress-bar-fill { height: 100%; background: #00a884; width: 0%; transition: width 0.1s ease; }
-    .bottom-bar { background: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
-    .recording-bar { background: #202c33; padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+    /* Fix #3: Bottom bar pinning without extra gap */
+    .bottom-bar { background: #202c33; padding: 10px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .recording-bar { background: #202c33; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; animation: slideUp 0.18s ease; }
+    
     .audio-visualizer { display: flex; align-items: center; gap: 3px; height: 20px; }
     .audio-bar { width: 3px; background: #00a884; height: 6px; border-radius: 2px; transition: height 0.05s ease; }
-    .call-banner { background: #1f2c34; border: 1px solid #00a884; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 12px; margin: 4px 0; }
-    .wa-call-tile { background: #2a3942; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 120px; }
-    .wa-tile-name { font-size: 12px; margin-top: 6px; color: #e9edef; font-weight: bold; }
+    .call-banner { background: #1f2c34; border: 1px solid #00a884; border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; gap: 12px; margin: 4px 0; }
+    .wa-call-tile { background: #202c33; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 140px; border: 1px solid #2a3942; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .wa-tile-name { font-size: 13px; margin-top: 8px; color: #e9edef; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -49,7 +94,7 @@
   <!-- Login Modal -->
   <div id="loginModal">
     <div class="modal-box">
-      <h3>Join Drexqe Chat</h3>
+      <h3 style="color:#00a884;">Join Drexqe Chat</h3>
       <input type="text" id="usernameInput" class="input-field" placeholder="Username">
       <select id="roleSelect" class="input-field">
         <option value="member">Member</option>
@@ -57,23 +102,23 @@
       </select>
       <div style="position:relative; width:100%;">
         <input type="password" id="passkeyInput" class="input-field" placeholder="Passkey">
-        <span onclick="togglePasskeyVisibility()" style="position:absolute; right:10px; top:10px; cursor:pointer;">👁️</span>
+        <span onclick="togglePasskeyVisibility()" style="position:absolute; right:12px; top:12px; cursor:pointer;">👁️</span>
       </div>
       <button class="btn" onclick="joinChat()">Enter Chat</button>
     </div>
   </div>
 
-  <!-- Feature #1: Full Admin Control Panel Modal -->
+  <!-- Admin Panel -->
   <div id="adminModal" style="display:none;">
     <div class="modal-box">
-      <h3>Admin Control Panel</h3>
+      <h3>👑 Admin Control Panel</h3>
       <input type="text" id="banUserInput" class="input-field" placeholder="Username to Ban/Unban">
       <div style="display:flex; gap:8px;">
         <button class="btn btn-danger" style="flex:1;" onclick="adminBanUser()">Ban User</button>
-        <button class="btn" style="flex:1; background:#34b7f1;" onclick="adminUnbanUser()">Unban User</button>
+        <button class="btn" style="flex:1; background:#34b7f1; color:#fff;" onclick="adminUnbanUser()">Unban User</button>
       </div>
       <button class="btn btn-danger" onclick="adminClearAllMessages()">🗑️ Clear All Messages</button>
-      <button class="btn" style="background:#8696a0;" onclick="closeAdminModal()">Close Panel</button>
+      <button class="btn" style="background:#8696a0; color:#fff;" onclick="closeAdminModal()">Close Panel</button>
     </div>
   </div>
 
@@ -86,17 +131,17 @@
     </div>
   </div>
 
-  <!-- Feature #2: Group Call Overlay -->
-  <div id="callScreen" style="display:none; flex-direction:column; justify-content:space-between; padding:20px;">
+  <!-- Fix #1: Plain Solid Background Group Call Interface -->
+  <div id="callScreen" style="display:none;">
     <div style="text-align:center;">
-      <h3>Group Call Active</h3>
-      <div id="callTimer" style="font-size:13px; color:#8696a0;">00:00</div>
+      <h3 style="color:#00a884;">Group Call Active</h3>
+      <div id="callTimer" style="font-size:14px; color:#8696a0; margin-top:4px;">00:00</div>
     </div>
-    <div id="callGrid" style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center; max-width:600px;"></div>
-    <div style="display:flex; gap:16px; justify-content:center;">
-      <button id="muteBtn" class="btn" onclick="toggleMute()">🎤</button>
-      <button id="speakerBtn" class="btn" onclick="toggleSpeaker()">🔊</button>
-      <button class="btn btn-danger" onclick="leaveGroupCall()">End Call</button>
+    <div id="callGrid" style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:center; max-width:600px; margin: 0 auto;"></div>
+    <div style="display:flex; gap:20px; justify-content:center;">
+      <button id="muteBtn" class="btn" style="padding:12px 20px; font-size:18px;" onclick="toggleMute()">🎤</button>
+      <button id="speakerBtn" class="btn" style="padding:12px 20px; font-size:18px;" onclick="toggleSpeaker()">🔊</button>
+      <button class="btn btn-danger" style="padding:12px 20px;" onclick="leaveGroupCall()">End Call</button>
     </div>
   </div>
 
@@ -104,12 +149,12 @@
 
   <div class="top-bar">
     <div>
-      <div style="font-weight: bold;">Drexqe Group</div>
+      <div style="font-weight: bold; font-size:16px;">Drexqe Group</div>
       <div id="userInfoSub" style="font-size: 11px; color: #8696a0;">Disconnected</div>
     </div>
     <div>
-      <button id="adminPanelBtn" class="btn" style="display:none; padding: 4px 8px; font-size: 12px;" onclick="openAdminModal()">Admin Panel</button>
-      <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="startGroupCall(true)">📞 Group Call</button>
+      <button id="adminPanelBtn" class="btn" style="display:none; padding: 6px 12px; font-size: 12px; background:#ffd700; color:#111b21;" onclick="openAdminModal()">👑 Admin Panel</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 12px;" onclick="startGroupCall(true)">📞 Group Call</button>
     </div>
   </div>
 
@@ -122,7 +167,7 @@
 
   <div id="preSendCard" style="display:none;">
     <div style="display:flex; align-items:center; gap:10px;">
-      <img id="preSendThumb" style="width:40px; height:40px; border-radius:4px; object-fit:cover; display:none;" />
+      <img id="preSendThumb" style="width:40px; height:40px; border-radius:6px; object-fit:cover; display:none;" />
       <div>
         <div id="preSendName" style="font-weight:bold;"></div>
         <div id="preSendSize" style="font-size:11px; color:#8696a0;"></div>
@@ -141,20 +186,17 @@
     </div>
   </div>
 
-  <!-- Standard Bar -->
   <div class="bottom-bar" id="standardInputBar">
     <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)">
     <button class="action-btn" style="font-size:20px;" onclick="document.getElementById('fileInput').click()">📎</button>
     <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendChatMessage()">
-    <!-- Feature #5: Voice Note Option -->
     <button class="action-btn" style="font-size:20px;" onclick="startVoiceRecording()">🎙️</button>
-    <button class="btn" style="padding: 8px 16px;" onclick="sendChatMessage()">Send</button>
+    <button class="btn" style="padding: 10px 18px;" onclick="sendChatMessage()">Send</button>
   </div>
 
-  <!-- Feature #5: Voice Note Recording UI -->
   <div class="recording-bar" id="recordingInputBar" style="display:none;">
     <div style="display:flex; align-items:center; gap:10px;">
-      <span style="color:#ea4335;">🔴 Recording...</span>
+      <span style="color:#ea4335; font-weight:bold;">🔴 Recording...</span>
       <span id="recordingTimer" style="font-size:13px; font-weight:bold;">00:00</span>
       <div class="audio-visualizer" id="recVisualizer">
         <div class="audio-bar"></div>
@@ -164,8 +206,8 @@
       </div>
     </div>
     <div style="display:flex; gap:8px;">
-      <button class="action-btn" style="font-size:18px;" onclick="cancelVoiceRecording()">🗑️</button>
-      <button class="btn" style="padding:6px 12px; font-size:12px;" onclick="stopAndSendVoiceRecording()">Send Voice</button>
+      <button class="action-btn" style="font-size:20px;" onclick="cancelVoiceRecording()">🗑️</button>
+      <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="stopAndSendVoiceRecording()">Send Voice</button>
     </div>
   </div>
 
@@ -203,7 +245,6 @@
       iceCandidatePoolSize: 10
     };
 
-    // Feature #4: Auto-fill Passkey & Username for returning visitors
     window.addEventListener('DOMContentLoaded', () => {
       const savedUser = localStorage.getItem('drexqe_user');
       const savedRole = localStorage.getItem('drexqe_role');
@@ -237,17 +278,11 @@
       currentUser = user;
       currentRole = role;
 
-      // Save for auto-fill on second visit
       localStorage.setItem('drexqe_user', user);
       localStorage.setItem('drexqe_role', role);
       localStorage.setItem('drexqe_passkey', passkey);
 
-      socket.emit('join-room', {
-        room: 'main-room',
-        user: user,
-        role: role,
-        passkey: passkey
-      });
+      socket.emit('join-room', { room: 'main-room', user, role, passkey });
     }
 
     socket.on('auth-success', () => {
@@ -258,7 +293,6 @@
       }
     });
 
-    // Feature #6: Hinglish Abuse Ban & Warnings
     socket.on('auth-error', (msg) => alert(msg));
     socket.on('user-banned', (msg) => { alert(msg); location.reload(); });
     socket.on('warning-msg', (msg) => alert(msg));
@@ -292,7 +326,7 @@
         row.className = 'msg-row system-row';
         row.innerHTML = `
           <div class="call-banner">
-            <span style="font-size:12px;">${msg.payload.text}</span>
+            <span style="font-size:13px; color:#e9edef;">${msg.payload.text}</span>
             <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="startGroupCall(false)">Join Call</button>
           </div>
         `;
@@ -324,11 +358,11 @@
 
         const canDelete = isMe || currentRole === 'admin';
 
-        /* Feature #3: Admin Messages rendering with special background and badge */
+        /* Fix #2: Crown Badge for Admin */
         row.innerHTML = `
           <div class="msg ${isMe ? 'me' : 'other'} ${isAdmin ? 'admin-msg' : ''}">
             <div class="msg-header">
-              <span>${msg.payload.user} ${isAdmin ? '<span class="admin-badge">ADMIN</span>' : ''}</span>
+              <span>${msg.payload.user} ${isAdmin ? '<span class="admin-crown-badge">👑 ADMIN</span>' : ''}</span>
               <div class="msg-actions">
                 <button class="action-btn" onclick="setReply('${msg.payload.user}', '${msg.payload.text || msg.type}')">↩️</button>
                 ${canDelete ? `<button class="action-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>` : ''}
@@ -394,7 +428,6 @@
       document.getElementById('preSendCard').style.display = 'none';
     }
 
-    // High Speed 256KB Chunk Uploader with Live Progress
     async function uploadFileInChunks(file) {
       const chunkSize = 256 * 1024;
       const totalChunks = Math.ceil(file.size / chunkSize);
@@ -503,7 +536,6 @@
       if (audioCtx) { audioCtx.close(); audioCtx = null; }
     }
 
-    // Feature #5: Voice Recording Logic
     async function startVoiceRecording() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -561,7 +593,6 @@
       document.getElementById('recordingInputBar').style.display = 'none';
     }
 
-    // Feature #1: Admin Panel Controls
     function openAdminModal() { document.getElementById('adminModal').style.display = 'flex'; }
     function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
     function adminClearAllMessages() { socket.emit('admin-clear-all-messages', { room: 'main-room' }); closeAdminModal(); }
@@ -574,7 +605,6 @@
       if (u) socket.emit('admin-unban-user', { room: 'main-room', username: u });
     }
 
-    // Feature #2: WebRTC Group Calling
     function renderCallUserTile(name, isMe, id) {
       const grid = document.getElementById('callGrid');
       let tile = document.getElementById(`call_tile_${id}`);
@@ -585,9 +615,9 @@
         grid.appendChild(tile);
       }
       tile.innerHTML = `
-        <div style="font-size: 32px;">👤</div>
+        <div style="font-size: 36px;">👤</div>
         <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
-        <div class="audio-visualizer" id="viz_${id}" style="margin-top:6px;">
+        <div class="audio-visualizer" id="viz_${id}" style="margin-top:8px;">
           <div class="audio-bar"></div>
           <div class="audio-bar"></div>
           <div class="audio-bar"></div>
