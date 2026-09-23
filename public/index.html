@@ -8,7 +8,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background-color: #111b21; color: #e9edef; height: 100vh; display: flex; flex-direction: column; }
-    #loginModal, #adminModal, #lightboxModal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    #loginModal, #adminModal, #lightboxModal, #callScreen { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 999; }
     .modal-box { background: #202c33; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
     .input-field { width: 100%; padding: 10px; background: #2a3942; border: none; border-radius: 6px; color: #fff; font-size: 14px; outline: none; }
     .btn { padding: 10px; background: #00a884; border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
@@ -23,6 +23,9 @@
     .msg.me { background: #005c4b; color: #e9edef; }
     .msg.other { background: #202c33; color: #e9edef; }
     .msg.system { background: rgba(255,255,255,0.1); color: #8696a0; font-size: 12px; border-radius: 12px; padding: 4px 12px; }
+    /* Feature #3: Special Stylish Admin Message Box */
+    .msg.admin-msg { background: linear-gradient(135deg, #1f2c34 0%, #0d1418 100%); border: 1.5px solid #00a884; box-shadow: 0 0 10px rgba(0,168,132,0.3); }
+    .admin-badge { background: #00a884; color: #111b21; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
     .msg-header { font-size: 11px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; color: #00a884; gap: 10px; }
     .msg-actions { display: flex; gap: 4px; }
     .action-btn { background: none; border: none; cursor: pointer; font-size: 12px; }
@@ -33,11 +36,17 @@
     .progress-bar-bg { width: 100%; background: #2a3942; height: 8px; border-radius: 4px; overflow: hidden; }
     .progress-bar-fill { height: 100%; background: #00a884; width: 0%; transition: width 0.1s ease; }
     .bottom-bar { background: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
-    .audio-bar { width: 3px; background: #00a884; height: 10px; border-radius: 2px; }
+    .recording-bar { background: #202c33; padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .audio-visualizer { display: flex; align-items: center; gap: 3px; height: 20px; }
+    .audio-bar { width: 3px; background: #00a884; height: 6px; border-radius: 2px; transition: height 0.05s ease; }
+    .call-banner { background: #1f2c34; border: 1px solid #00a884; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 12px; margin: 4px 0; }
+    .wa-call-tile { background: #2a3942; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 120px; }
+    .wa-tile-name { font-size: 12px; margin-top: 6px; color: #e9edef; font-weight: bold; }
   </style>
 </head>
 <body>
 
+  <!-- Login Modal -->
   <div id="loginModal">
     <div class="modal-box">
       <h3>Join Drexqe Chat</h3>
@@ -46,10 +55,52 @@
         <option value="member">Member</option>
         <option value="admin">Admin</option>
       </select>
-      <input type="password" id="passkeyInput" class="input-field" placeholder="Passkey">
+      <div style="position:relative; width:100%;">
+        <input type="password" id="passkeyInput" class="input-field" placeholder="Passkey">
+        <span onclick="togglePasskeyVisibility()" style="position:absolute; right:10px; top:10px; cursor:pointer;">👁️</span>
+      </div>
       <button class="btn" onclick="joinChat()">Enter Chat</button>
     </div>
   </div>
+
+  <!-- Feature #1: Full Admin Control Panel Modal -->
+  <div id="adminModal" style="display:none;">
+    <div class="modal-box">
+      <h3>Admin Control Panel</h3>
+      <input type="text" id="banUserInput" class="input-field" placeholder="Username to Ban/Unban">
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-danger" style="flex:1;" onclick="adminBanUser()">Ban User</button>
+        <button class="btn" style="flex:1; background:#34b7f1;" onclick="adminUnbanUser()">Unban User</button>
+      </div>
+      <button class="btn btn-danger" onclick="adminClearAllMessages()">🗑️ Clear All Messages</button>
+      <button class="btn" style="background:#8696a0;" onclick="closeAdminModal()">Close Panel</button>
+    </div>
+  </div>
+
+  <!-- Lightbox Modal -->
+  <div id="lightboxModal" style="display:none;" onclick="closeLightbox()">
+    <div style="max-width:90%; max-height:90%; display:flex; flex-direction:column; align-items:center; gap:10px;">
+      <span id="lightboxTitle" style="color:#fff; font-size:14px;"></span>
+      <img id="lightboxImg" style="max-width:100%; max-height:80vh; border-radius:8px;">
+      <a id="lightboxDownloadBtn" class="btn" download style="text-decoration:none;">Download</a>
+    </div>
+  </div>
+
+  <!-- Feature #2: Group Call Overlay -->
+  <div id="callScreen" style="display:none; flex-direction:column; justify-content:space-between; padding:20px;">
+    <div style="text-align:center;">
+      <h3>Group Call Active</h3>
+      <div id="callTimer" style="font-size:13px; color:#8696a0;">00:00</div>
+    </div>
+    <div id="callGrid" style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center; max-width:600px;"></div>
+    <div style="display:flex; gap:16px; justify-content:center;">
+      <button id="muteBtn" class="btn" onclick="toggleMute()">🎤</button>
+      <button id="speakerBtn" class="btn" onclick="toggleSpeaker()">🔊</button>
+      <button class="btn btn-danger" onclick="leaveGroupCall()">End Call</button>
+    </div>
+  </div>
+
+  <div id="remoteAudioContainer" style="display:none;"></div>
 
   <div class="top-bar">
     <div>
@@ -57,8 +108,8 @@
       <div id="userInfoSub" style="font-size: 11px; color: #8696a0;">Disconnected</div>
     </div>
     <div>
-      <button id="adminPanelBtn" class="btn" style="display:none; padding: 4px 8px; font-size: 12px;" onclick="openAdminModal()">Admin</button>
-      <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="startGroupCall(true)">Group Call</button>
+      <button id="adminPanelBtn" class="btn" style="display:none; padding: 4px 8px; font-size: 12px;" onclick="openAdminModal()">Admin Panel</button>
+      <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="startGroupCall(true)">📞 Group Call</button>
     </div>
   </div>
 
@@ -90,21 +141,83 @@
     </div>
   </div>
 
+  <!-- Standard Bar -->
   <div class="bottom-bar" id="standardInputBar">
     <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)">
     <button class="action-btn" style="font-size:20px;" onclick="document.getElementById('fileInput').click()">📎</button>
     <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+    <!-- Feature #5: Voice Note Option -->
     <button class="action-btn" style="font-size:20px;" onclick="startVoiceRecording()">🎙️</button>
     <button class="btn" style="padding: 8px 16px;" onclick="sendChatMessage()">Send</button>
   </div>
 
+  <!-- Feature #5: Voice Note Recording UI -->
+  <div class="recording-bar" id="recordingInputBar" style="display:none;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="color:#ea4335;">🔴 Recording...</span>
+      <span id="recordingTimer" style="font-size:13px; font-weight:bold;">00:00</span>
+      <div class="audio-visualizer" id="recVisualizer">
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="action-btn" style="font-size:18px;" onclick="cancelVoiceRecording()">🗑️</button>
+      <button class="btn" style="padding:6px 12px; font-size:12px;" onclick="stopAndSendVoiceRecording()">Send Voice</button>
+    </div>
+  </div>
+
   <script>
     const socket = io();
+
     let currentUser = '';
     let currentRole = 'member';
     let selectedReply = null;
     let pendingSelectedFile = null;
     let activeUploadId = null;
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recTimerInterval = null;
+    let recSeconds = 0;
+
+    let localStream = null;
+    let peerConnections = {};
+    let isMuted = false;
+    let isSpeakerOn = true;
+    let callTimerInterval = null;
+    let callSeconds = 0;
+
+    let audioCtx = null;
+    let analyser = null;
+    let animFrame = null;
+
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+      ],
+      iceCandidatePoolSize: 10
+    };
+
+    // Feature #4: Auto-fill Passkey & Username for returning visitors
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedUser = localStorage.getItem('drexqe_user');
+      const savedRole = localStorage.getItem('drexqe_role');
+      const savedPasskey = localStorage.getItem('drexqe_passkey');
+
+      if (savedUser) document.getElementById('usernameInput').value = savedUser;
+      if (savedRole) document.getElementById('roleSelect').value = savedRole;
+      if (savedPasskey) document.getElementById('passkeyInput').value = savedPasskey;
+    });
+
+    function togglePasskeyVisibility() {
+      const field = document.getElementById('passkeyInput');
+      field.type = field.type === 'password' ? 'text' : 'password';
+    }
 
     function formatBytes(bytes) {
       if (bytes === 0) return '0 Bytes';
@@ -118,26 +231,54 @@
       const user = document.getElementById('usernameInput').value.trim();
       const role = document.getElementById('roleSelect').value;
       const passkey = document.getElementById('passkeyInput').value.trim();
+
       if (!user || !passkey) return alert('Fill in all fields.');
 
       currentUser = user;
       currentRole = role;
 
-      socket.emit('join-room', { room: 'main-room', user, role, passkey });
+      // Save for auto-fill on second visit
+      localStorage.setItem('drexqe_user', user);
+      localStorage.setItem('drexqe_role', role);
+      localStorage.setItem('drexqe_passkey', passkey);
+
+      socket.emit('join-room', {
+        room: 'main-room',
+        user: user,
+        role: role,
+        passkey: passkey
+      });
     }
 
     socket.on('auth-success', () => {
       document.getElementById('loginModal').style.display = 'none';
       document.getElementById('userInfoSub').innerText = `${currentUser} (${currentRole}) • Active`;
-      if (currentRole === 'admin') document.getElementById('adminPanelBtn').style.display = 'inline-block';
+      if (currentRole === 'admin') {
+        document.getElementById('adminPanelBtn').style.display = 'inline-block';
+      }
     });
 
-    socket.on('auth-error', alert);
+    // Feature #6: Hinglish Abuse Ban & Warnings
+    socket.on('auth-error', (msg) => alert(msg));
+    socket.on('user-banned', (msg) => { alert(msg); location.reload(); });
+    socket.on('warning-msg', (msg) => alert(msg));
+    socket.on('admin-action-success', (msg) => alert(msg));
+
     socket.on('chat-history', (history) => {
       document.getElementById('chatBox').innerHTML = '';
       history.forEach(renderMessage);
     });
+
     socket.on('chat-message', renderMessage);
+
+    socket.on('message-deleted', ({ msgId }) => {
+      const el = document.getElementById(`msg_${msgId}`);
+      if (el) el.remove();
+    });
+
+    socket.on('all-messages-cleared', () => {
+      document.getElementById('chatBox').innerHTML = '';
+    });
 
     function renderMessage(msg) {
       const chatBox = document.getElementById('chatBox');
@@ -147,27 +288,85 @@
       if (msg.type === 'system') {
         row.className = 'msg-row system-row';
         row.innerHTML = `<div class="msg system">${msg.payload.text}</div>`;
+      } else if (msg.type === 'call-announcement') {
+        row.className = 'msg-row system-row';
+        row.innerHTML = `
+          <div class="call-banner">
+            <span style="font-size:12px;">${msg.payload.text}</span>
+            <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="startGroupCall(false)">Join Call</button>
+          </div>
+        `;
       } else {
         const isMe = msg.payload.user === currentUser;
+        const isAdmin = msg.role === 'admin';
         row.className = `msg-row ${isMe ? 'me' : 'other'}`;
 
         let contentHtml = '';
-        if (msg.type === 'text') contentHtml = `<div>${msg.payload.text}</div>`;
-        else if (msg.type === 'image') {
-          contentHtml = `<img src="${msg.payload.url}" class="chat-image"><div style="font-size:10px; opacity:0.8;">${formatBytes(msg.payload.size || 0)}</div>`;
+        if (msg.type === 'text') {
+          contentHtml = `<div>${msg.payload.text}</div>`;
+        } else if (msg.type === 'image') {
+          contentHtml = `
+            <img src="${msg.payload.url}" class="chat-image" onclick="openLightbox('${msg.payload.url}', '${msg.payload.name || 'Image'}')">
+            <div style="font-size:10px; opacity:0.8; margin-top:4px;">${formatBytes(msg.payload.size || 0)}</div>
+          `;
         } else if (msg.type === 'file') {
-          contentHtml = `<a href="${msg.payload.url}" download="${msg.payload.name}" style="color:#00a884; font-weight:600;">📁 ${msg.payload.name} (${formatBytes(msg.payload.size || 0)})</a>`;
+          contentHtml = `
+            <a href="${msg.payload.url}" download="${msg.payload.name}" style="color:#00a884; font-weight:600; text-decoration:none;">📁 ${msg.payload.name} (${formatBytes(msg.payload.size || 0)})</a>
+          `;
+        } else if (msg.type === 'voice') {
+          contentHtml = `<audio controls src="${msg.payload.url}" style="max-width:220px;"></audio>`;
         }
 
+        let replyQuoteHtml = '';
+        if (msg.replyTo) {
+          replyQuoteHtml = `<div class="reply-quote"><b>${msg.replyTo.user}:</b> ${msg.replyTo.text}</div>`;
+        }
+
+        const canDelete = isMe || currentRole === 'admin';
+
+        /* Feature #3: Admin Messages rendering with special background and badge */
         row.innerHTML = `
-          <div class="msg ${isMe ? 'me' : 'other'}">
-            <div class="msg-header"><span>${msg.payload.user}</span></div>
+          <div class="msg ${isMe ? 'me' : 'other'} ${isAdmin ? 'admin-msg' : ''}">
+            <div class="msg-header">
+              <span>${msg.payload.user} ${isAdmin ? '<span class="admin-badge">ADMIN</span>' : ''}</span>
+              <div class="msg-actions">
+                <button class="action-btn" onclick="setReply('${msg.payload.user}', '${msg.payload.text || msg.type}')">↩️</button>
+                ${canDelete ? `<button class="action-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>` : ''}
+              </div>
+            </div>
+            ${replyQuoteHtml}
             ${contentHtml}
           </div>
         `;
       }
+
       chatBox.appendChild(row);
       chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function setReply(user, text) {
+      selectedReply = { user, text };
+      document.getElementById('replyPreviewText').innerText = `Replying to ${user}: ${text.substring(0, 30)}...`;
+      document.getElementById('replyPreviewBar').style.display = 'flex';
+    }
+
+    function cancelReply() {
+      selectedReply = null;
+      document.getElementById('replyPreviewBar').style.display = 'none';
+    }
+
+    function openLightbox(url, name) {
+      document.getElementById('lightboxImg').src = url;
+      document.getElementById('lightboxTitle').innerText = name || 'Media Preview';
+      const dlBtn = document.getElementById('lightboxDownloadBtn');
+      dlBtn.href = url;
+      dlBtn.download = name || 'downloaded_media';
+      document.getElementById('lightboxModal').style.display = 'flex';
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightboxModal').style.display = 'none';
+      document.getElementById('lightboxImg').src = '';
     }
 
     function handleFileSelect(e) {
@@ -195,9 +394,9 @@
       document.getElementById('preSendCard').style.display = 'none';
     }
 
-    // Accelerated 256KB Chunk Uploader with Live Progress Bar
+    // High Speed 256KB Chunk Uploader with Live Progress
     async function uploadFileInChunks(file) {
-      const chunkSize = 256 * 1024; // 256KB chunks for maximum Socket.IO throughput
+      const chunkSize = 256 * 1024;
       const totalChunks = Math.ceil(file.size / chunkSize);
       const uploadId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 7);
       activeUploadId = uploadId;
@@ -226,7 +425,6 @@
 
         socket.emit('upload-chunk', { uploadId, chunkIndex: i, chunkData: chunkArrayBuffer });
 
-        // Update UI progress dynamically
         const progress = Math.round(((i + 1) / totalChunks) * 100);
         document.getElementById('uploadFill').style.width = `${progress}%`;
         document.getElementById('uploadPercentText').innerText = `${progress}%`;
@@ -249,6 +447,7 @@
       if (pendingSelectedFile) {
         uploadFileInChunks(pendingSelectedFile);
         cancelPendingMediaSelection();
+        cancelReply();
         input.value = '';
         return;
       }
@@ -258,9 +457,293 @@
       socket.emit('chat-message', {
         room: 'main-room',
         type: 'text',
+        replyTo: selectedReply,
         payload: { user: currentUser, text: text }
       });
+
       input.value = '';
+      cancelReply();
+    }
+
+    function deleteMessage(msgId) {
+      socket.emit('delete-message', { room: 'main-room', msgId });
+    }
+
+    function setupAudioAnalyzer(stream, targetVisualizerId) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 32;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function update() {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+        let average = sum / bufferLength;
+
+        const container = document.getElementById(targetVisualizerId);
+        if (container) {
+          const bars = container.querySelectorAll('.audio-bar');
+          bars.forEach((bar, idx) => {
+            let val = (dataArray[idx % bufferLength] || average) / 255 * 28;
+            bar.style.height = `${Math.max(4, val)}px`;
+          });
+        }
+        animFrame = requestAnimationFrame(update);
+      }
+      update();
+    }
+
+    function stopAudioAnalyzer() {
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    }
+
+    // Feature #5: Voice Recording Logic
+    async function startVoiceRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+        mediaRecorder.start();
+
+        setupAudioAnalyzer(stream, 'recVisualizer');
+
+        document.getElementById('standardInputBar').style.display = 'none';
+        document.getElementById('recordingInputBar').style.display = 'flex';
+
+        recSeconds = 0;
+        recTimerInterval = setInterval(() => {
+          recSeconds++;
+          const mins = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+          const secs = String(recSeconds % 60).padStart(2, '0');
+          document.getElementById('recordingTimer').innerText = `${mins}:${secs}`;
+        }, 1000);
+      } catch (e) {
+        alert('Microphone access denied or unavailable.');
+      }
+    }
+
+    function cancelVoiceRecording() {
+      if (mediaRecorder) mediaRecorder.stop();
+      stopAudioAnalyzer();
+      clearInterval(recTimerInterval);
+      document.getElementById('standardInputBar').style.display = 'flex';
+      document.getElementById('recordingInputBar').style.display = 'none';
+    }
+
+    function stopAndSendVoiceRecording() {
+      if (!mediaRecorder) return;
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          socket.emit('chat-message', {
+            room: 'main-room',
+            type: 'voice',
+            replyTo: selectedReply,
+            payload: { user: currentUser, url: reader.result }
+          });
+          cancelReply();
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+      mediaRecorder.stop();
+      stopAudioAnalyzer();
+      clearInterval(recTimerInterval);
+      document.getElementById('standardInputBar').style.display = 'flex';
+      document.getElementById('recordingInputBar').style.display = 'none';
+    }
+
+    // Feature #1: Admin Panel Controls
+    function openAdminModal() { document.getElementById('adminModal').style.display = 'flex'; }
+    function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
+    function adminClearAllMessages() { socket.emit('admin-clear-all-messages', { room: 'main-room' }); closeAdminModal(); }
+    function adminBanUser() {
+      const u = document.getElementById('banUserInput').value.trim();
+      if (u) socket.emit('admin-ban-user', { room: 'main-room', username: u });
+    }
+    function adminUnbanUser() {
+      const u = document.getElementById('banUserInput').value.trim();
+      if (u) socket.emit('admin-unban-user', { room: 'main-room', username: u });
+    }
+
+    // Feature #2: WebRTC Group Calling
+    function renderCallUserTile(name, isMe, id) {
+      const grid = document.getElementById('callGrid');
+      let tile = document.getElementById(`call_tile_${id}`);
+      if (!tile) {
+        tile = document.createElement('div');
+        tile.className = 'wa-call-tile';
+        tile.id = `call_tile_${id}`;
+        grid.appendChild(tile);
+      }
+      tile.innerHTML = `
+        <div style="font-size: 32px;">👤</div>
+        <div class="wa-tile-name">${name} ${isMe ? '(You)' : ''}</div>
+        <div class="audio-visualizer" id="viz_${id}" style="margin-top:6px;">
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+        </div>
+      `;
+    }
+
+    async function startGroupCall(isInitiatorAnnouncement = false) {
+      document.getElementById('callGrid').innerHTML = '';
+      document.getElementById('callScreen').style.display = 'flex';
+      renderCallUserTile(currentUser, true, 'local');
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            latency: 0
+          }
+        });
+        setupAudioAnalyzer(localStream, 'viz_local');
+        startCallTimer();
+
+        if (isInitiatorAnnouncement) {
+          socket.emit('start-voice-call-announcement', { room: 'main-room' });
+        }
+        socket.emit('join-voice-call', { room: 'main-room' });
+      } catch (err) {
+        alert('Microphone permission required: ' + err.message);
+        leaveGroupCall();
+      }
+    }
+
+    socket.on('existing-callers', (callers) => {
+      callers.forEach(caller => {
+        renderCallUserTile(caller.username, false, caller.socketId);
+        createPeerConnection(caller.socketId, caller.username, true);
+      });
+    });
+
+    socket.on('webrtc-offer', async ({ fromSocketId, fromUsername, offer }) => {
+      renderCallUserTile(fromUsername, false, fromSocketId);
+      const pc = createPeerConnection(fromSocketId, fromUsername, false);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('webrtc-answer', { targetSocketId: fromSocketId, answer });
+    });
+
+    socket.on('webrtc-answer', async ({ fromSocketId, answer }) => {
+      const pc = peerConnections[fromSocketId];
+      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    });
+
+    socket.on('webrtc-ice', async ({ fromSocketId, candidate }) => {
+      const pc = peerConnections[fromSocketId];
+      if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    socket.on('caller-left', ({ socketId }) => {
+      if (peerConnections[socketId]) {
+        peerConnections[socketId].close();
+        delete peerConnections[socketId];
+      }
+      const tile = document.getElementById(`call_tile_${socketId}`);
+      if (tile) tile.remove();
+      const audioEl = document.getElementById(`audio_${socketId}`);
+      if (audioEl) audioEl.remove();
+    });
+
+    function createPeerConnection(targetSocketId, targetUsername, isInitiator) {
+      const pc = new RTCPeerConnection(rtcConfig);
+      peerConnections[targetSocketId] = pc;
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      }
+
+      pc.ontrack = (event) => {
+        let audioEl = document.getElementById(`audio_${targetSocketId}`);
+        if (!audioEl) {
+          audioEl = document.createElement('audio');
+          audioEl.id = `audio_${targetSocketId}`;
+          audioEl.autoplay = true;
+          audioEl.setAttribute('playsinline', 'true');
+          document.getElementById('remoteAudioContainer').appendChild(audioEl);
+        }
+        audioEl.srcObject = event.streams[0];
+        audioEl.play().catch(e => console.log('Autoplay error:', e));
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('webrtc-ice', { targetSocketId, candidate: event.candidate });
+        }
+      };
+
+      if (isInitiator) {
+        pc.onnegotiationneeded = async () => {
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit('webrtc-offer', { targetSocketId, offer });
+          } catch (e) { console.error(e); }
+        };
+      }
+
+      return pc;
+    }
+
+    function startCallTimer() {
+      callSeconds = 0;
+      clearInterval(callTimerInterval);
+      callTimerInterval = setInterval(() => {
+        callSeconds++;
+        const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+        const secs = String(callSeconds % 60).padStart(2, '0');
+        document.getElementById('callTimer').innerText = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      if (localStream) localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+      const btn = document.getElementById('muteBtn');
+      btn.innerText = isMuted ? '🔇' : '🎤';
+    }
+
+    function toggleSpeaker() {
+      isSpeakerOn = !isSpeakerOn;
+      const audioEls = document.querySelectorAll('#remoteAudioContainer audio');
+      audioEls.forEach(el => el.muted = !isSpeakerOn);
+      const btn = document.getElementById('speakerBtn');
+      btn.innerText = isSpeakerOn ? '🔊' : '🔈';
+    }
+
+    function leaveGroupCall() {
+      clearInterval(callTimerInterval);
+      stopAudioAnalyzer();
+      socket.emit('leave-voice-call');
+
+      Object.keys(peerConnections).forEach(sid => peerConnections[sid].close());
+      peerConnections = {};
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+
+      document.getElementById('remoteAudioContainer').innerHTML = '';
+      document.getElementById('callGrid').innerHTML = '';
+      document.getElementById('callScreen').style.display = 'none';
     }
   </script>
 </body>
