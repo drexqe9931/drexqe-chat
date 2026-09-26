@@ -28,3 +28,44 @@
     });
   });
 </script>
+
+<!-- Group Info & Disclaimer Modal -->
+<div id="disclaimerModal" style="display:none; position:fixed; z-index:99999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.85); align-items:center; justify-content:center;">
+  <div style="background:#1e293b; color:#ffffff; padding:22px; border-radius:14px; width:88%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.7); font-family:sans-serif;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px;">
+      <h3 style="margin:0; color:#10b981; font-size:18px;">🛡️ Drexqe Group Info</h3>
+      <span onclick="document.getElementById('disclaimerModal').style.display='none'" style="cursor:pointer; font-size:26px; color:#94a3b8; font-weight:bold;">&times;</span>
+    </div>
+    <div style="font-size:13px; line-height:1.5; margin-top:14px; text-align:left; color:#cbd5e1;">
+      <p style="margin-bottom:10px;"><strong style="color:#fff;">1. About This Group:</strong><br>A private, real-time, end-to-end encrypted (E2EE) community chat for authorized members.</p>
+      <p style="margin-bottom:10px;"><strong style="color:#fff;">2. Anti-Abuse & Anti-Toxicity Policy:</strong><br>• No verbal abuse, harassment, or hate speech.<br>• No explicit or unauthorized content.<br>• No room spamming.</p>
+      <p style="margin-bottom:10px;"><strong style="color:#fff;">3. Ban Policy:</strong><br>• Violations result in an <strong style="color:#ef4444;">immediate and permanent ban</strong>.<br>• Passkey access will be permanently revoked.</p>
+    </div>
+    <button onclick="document.getElementById('disclaimerModal').style.display='none'" style="margin-top:15px; width:100%; padding:12px; background:#10b981; color:#fff; border:none; border-radius:8px; font-weight:bold; font-size:14px; cursor:pointer;">I Understand</button>
+  </div>
+</div>
+
+<script>
+  function attachHeaderClick() {
+    const allElements = document.querySelectorAll("*");
+    allElements.forEach(el => {
+      if (el.children.length === 0 && el.textContent.trim().startsWith("Drexqe Group")) {
+        let clickableTarget = el.parentElement || el;
+        clickableTarget.style.cursor = "pointer";
+        clickableTarget.onclick = function(e) {
+          e.stopPropagation();
+          document.getElementById("disclaimerModal").style.display = "flex";
+        };
+      }
+    });
+  }
+
+  // Attach event listener immediately and observe DOM changes
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", attachHeaderClick);
+  } else {
+    attachHeaderClick();
+  }
+  
+  setInterval(attachHeaderClick, 1000);
+</script>
