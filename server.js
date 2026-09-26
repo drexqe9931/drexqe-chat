@@ -234,3 +234,11 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+
+// --- SOCKET FIXES FOR RENDER & MULTI-USER ---
+if (typeof io !== 'undefined') {
+  io.opts = io.opts || {};
+  io.opts.pingTimeout = 30000;
+  io.opts.pingInterval = 10000;
+  io.opts.maxHttpBufferSize = 1e8;
+}
