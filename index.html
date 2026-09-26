@@ -69,3 +69,60 @@
   
   setInterval(attachHeaderClick, 1000);
 </script>
+
+<script>
+  (function() {
+    // Wait for Socket.io instance to initialize
+    function setupSocketSync() {
+      if (typeof socket === 'undefined' || !socket) {
+        setTimeout(setupSocketSync, 300);
+        return;
+      }
+
+      // 1. Force socket reconnect options
+      socket.io.opts.reconnection = true;
+      socket.io.opts.reconnectionAttempts = Infinity;
+      socket.io.opts.reconnectionDelay = 500;
+      socket.io.opts.reconnectionDelayMax = 2000;
+
+      // 2. Function to request missed history from server
+      function requestSync() {
+        if (!socket.connected) {
+          socket.connect();
+        } else {
+          // Ask server to re-emit chat history or room state
+          socket.emit("request_chat_history");
+          socket.emit("sync_messages");
+        }
+      }
+
+      // 3. Listen for tab un-minimize / mobile wake-up
+      document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === "visible") {
+          console.log("Tab resumed from background. Syncing connection...");
+          requestSync();
+        }
+      });
+
+      window.addEventListener("focus", function() {
+        requestSync();
+      });
+
+      // 4. On socket reconnect event, automatically re-sync
+      socket.on("connect", function() {
+        console.log("Socket connected/reconnected.");
+        requestSync();
+      });
+
+      socket.on("reconnect", function() {
+        requestSync();
+      });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", setupSocketSync);
+    } else {
+      setupSocketSync();
+    }
+  })();
+</script>
